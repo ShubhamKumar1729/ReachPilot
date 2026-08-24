@@ -13,6 +13,7 @@ import {
   Activity,
   ShieldCheck,
   Gauge,
+  Trash2,
 } from "lucide-react";
 import type { LogRow, RunRow, SentRow } from "@/lib/types";
 import { fmtDate, runStatusColor } from "@/lib/types";
@@ -210,14 +211,28 @@ export default function RunConsolePage() {
                 <div key={s.id} className="log-line rounded-xl border border-hairline bg-black/25 p-3.5">
                   <div className="flex items-center justify-between gap-2">
                     <p className="truncate font-mono text-[12.5px] font-semibold text-mist">{s.email}</p>
-                    <span
-                      className={`chip shrink-0 !py-0.5 border ${
-                        s.status === "SENT"
-                          ? "text-acid border-acid/40 bg-acid/10"
-                          : "text-redX border-redX/40 bg-redX/10"
-                      }`}
-                    >
-                      {s.status.toLowerCase()}
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <span
+                        className={`chip !py-0.5 border ${
+                          s.status === "SENT"
+                            ? "text-acid border-acid/40 bg-acid/10"
+                            : "text-redX border-redX/40 bg-redX/10"
+                        }`}
+                      >
+                        {s.status.toLowerCase()}
+                      </span>
+                      <button
+                        onClick={async () => {
+                          await fetch(`/api/sent/${s.id}`, { method: "DELETE" }).catch(
+                            () => undefined
+                          );
+                          poll();
+                        }}
+                        className="rounded-md p-1 text-fog/60 transition-colors hover:bg-redX/10 hover:text-redX"
+                        title="Delete this record"
+                      >
+                        <Trash2 size={12} />
+                      </button>
                     </span>
                   </div>
                   <p className="mt-1 text-[11px] text-fog">

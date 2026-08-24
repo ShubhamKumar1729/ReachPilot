@@ -3,6 +3,11 @@ function env(key: string, fallback = ""): string {
   return (v ?? fallback).trim();
 }
 
+/** Strip markdown link wrappers ([x](y) → x) that sneak in from copy-paste. */
+function deMd(v: string): string {
+  return v.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").trim();
+}
+
 function envInt(key: string, fallback: number): number {
   const n = parseInt(env(key), 10);
   return Number.isFinite(n) && n > 0 ? n : fallback;
@@ -30,16 +35,16 @@ export const config = {
   dailyResponseTarget: envInt("DAILY_RESPONSE_TARGET", 20),
 
   candidate: {
-    name: env("CANDIDATE_NAME", "Candidate"),
-    email: env("CANDIDATE_EMAIL"),
-    phone: env("CANDIDATE_PHONE"),
-    linkedin: env("CANDIDATE_LINKEDIN"),
-    location: env("CANDIDATE_LOCATION"),
-    relocation: env("CANDIDATE_RELOCATION"),
-    workAuth: env("CANDIDATE_WORK_AUTH"),
-    availability: env("CANDIDATE_AVAILABILITY"),
-    experience: env("CANDIDATE_EXPERIENCE"),
-    expectedRate: env("CANDIDATE_EXPECTED_RATE"),
+    name: deMd(env("CANDIDATE_NAME", "Candidate")),
+    email: deMd(env("CANDIDATE_EMAIL")),
+    phone: deMd(env("CANDIDATE_PHONE")),
+    linkedin: deMd(env("CANDIDATE_LINKEDIN")),
+    location: deMd(env("CANDIDATE_LOCATION")),
+    relocation: deMd(env("CANDIDATE_RELOCATION")),
+    workAuth: deMd(env("CANDIDATE_WORK_AUTH")),
+    availability: deMd(env("CANDIDATE_AVAILABILITY")),
+    experience: deMd(env("CANDIDATE_EXPERIENCE")),
+    expectedRate: deMd(env("CANDIDATE_EXPECTED_RATE")),
   },
 
   resumeFilename: env("RESUME_FILENAME", "Resume.pdf") || "Resume.pdf",

@@ -14,6 +14,7 @@ import {
   CircleUser,
   SlidersHorizontal,
   BrainCircuit,
+  ArrowLeft,
 } from "lucide-react";
 import type { SettingsPayload } from "@/lib/types";
 
@@ -346,13 +347,23 @@ export default function NewRunPage() {
                     />
                   ))}
                 </div>
-                <button
-                  onClick={() => nextFrom(step)}
-                  disabled={(step === 0 && !role.trim()) || (step === 1 && !query.trim()) || (step === 3 && customize === null)}
-                  className="btn btn-ghost !px-4 !py-2 font-mono text-[12px] uppercase tracking-wider"
-                >
-                  continue <ChevronRight size={13} />
-                </button>
+                <div className="flex items-center gap-2">
+                  {step > 0 && (
+                    <button
+                      onClick={() => setStep((step - 1) as Step)}
+                      className="btn btn-ghost !px-4 !py-2 font-mono text-[12px] uppercase tracking-wider"
+                    >
+                      <ArrowLeft size={13} /> back
+                    </button>
+                  )}
+                  <button
+                    onClick={() => nextFrom(step)}
+                    disabled={(step === 0 && !role.trim()) || (step === 1 && !query.trim()) || (step === 3 && customize === null)}
+                    className="btn btn-ghost !px-4 !py-2 font-mono text-[12px] uppercase tracking-wider"
+                  >
+                    continue <ChevronRight size={13} />
+                  </button>
+                </div>
               </div>
             )}
           </div>

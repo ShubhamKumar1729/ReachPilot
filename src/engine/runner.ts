@@ -132,6 +132,7 @@ async function executeRun(runId: string): Promise<void> {
       query: run.query,
       scrollRounds: config.bot.scrollRounds,
       log: (lvl, msg) => void log(runId, lvl, msg),
+      isStopped: () => handle.stop,
     });
     if (res.needsLogin) {
       throw new Error(res.note ?? "LinkedIn login required.");

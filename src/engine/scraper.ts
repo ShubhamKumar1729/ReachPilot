@@ -565,13 +565,18 @@ async function expandTruncatedPosts(page: PWPage): Promise<number> {
 async function resolvePermalinksViaMenu(
   page: PWPage,
   posts: ScrapedPost[],
-  log: LogFn
+  log: LogFn,
+  isStopped?: () => boolean
 ): Promise<void> {
   const missing = posts.filter((p) => !p.postLink).slice(0, 12);
   if (missing.length === 0) return;
 
   let captured = 0;
   for (const post of missing) {
+    if (isStopped?.()) {
+      log("info", "Stop requested — stopping post link capture.");
+      break;
+    }
     const targetEmail = (post.emails[0] || "").toLowerCase();
     if (!targetEmail) continue;
 
@@ -696,16 +701,32 @@ async function resolvePermalinksViaMenu(
     await page.keyboard.press("Escape").catch(() => undefined);
     await sleep(700);
 
-    if (
-      clip &&
-      clip.includes("linkedin.com") &&
-      (clip.includes("/posts/") ||
-        clip.includes("feed/update") ||
-        clip.includes("activity"))
-    ) {
-      post.postLink = clip;
+    // "Copy link to post" puts a SHORT lnkd.in link on the clipboard —
+    // accept it, then resolve the redirect to the canonical post URL.
+    const trimmed = clip.trim();
+    const isShortLink = trimmed.includes("lnkd.in");
+    const isFullLink =
+      trimmed.includes("linkedin.com") &&
+      (trimmed.includes("/posts/") ||
+        trimmed.includes("feed/update") ||
+        trimmed.includes("activity"));
+    if (trimmed && (isShortLink || isFullLink)) {
+      let finalLink = trimmed;
+      if (isShortLink) {
+        try {
+          const res = await fetch(trimmed, {
+            redirect: "follow",
+            signal: AbortSignal.timeout(8000),
+          });
+          if (res.url && res.url.includes("linkedin.com")) finalLink = res.url;
+          await res.body?.cancel();
+        } catch {
+          /* keep the short link */
+        }
+      }
+      post.postLink = finalLink;
       captured++;
-      log("ok", `Post link captured for ${targetEmail}: ${clip.slice(0, 90)}`);
+      log("ok", `Post link captured for ${targetEmail}: ${finalLink.slice(0, 90)}`);
     } else {
       log(
         "warn",
@@ -744,8 +765,9 @@ export async function scrapeLinkedInPosts(opts: {
   query: string;
   scrollRounds: number;
   log: LogFn;
+  isStopped?: () => boolean;
 }): Promise<ScrapeResult> {
-  const { query, scrollRounds, log } = opts;
+  const { query, scrollRounds, log, isStopped } = opts;
   let chromium: typeof import("playwright").chromium;
   try {
     ({ chromium } = await import("playwright"));
@@ -869,6 +891,10 @@ export async function scrapeLinkedInPosts(opts: {
     let statsLogged = false;
 
     for (let round = 0; round < scrollRounds && stagnantRounds < 3; round++) {
+      if (isStopped?.()) {
+        log("info", "Stop requested — ending the scrape early.");
+        break;
+      }
       // Expand "…more" so full post text (and emails) become visible.
       await expandTruncatedPosts(page);
 
@@ -942,7 +968,7 @@ export async function scrapeLinkedInPosts(opts: {
     // Final expansion pass: re-adopt fully expanded text for posts that were
     // captured while still truncated ("… more"), so FOR REFERENCE carries
     // the complete JD.
-    {
+    if (!isStopped?.()) {
       const finalClicks = await expandTruncatedPosts(page);
       if (finalClicks > 0) {
         const { cards: finalCards } = await findPostCards(page, query);
@@ -960,9 +986,9 @@ export async function scrapeLinkedInPosts(opts: {
 
     // Capture real permalinks for email-bearing posts via each post's
     // 3-dot menu -> "Copy link to post" (clipboard).
-    if (posts.length > 0) {
+    if (posts.length > 0 && !isStopped?.()) {
       log("info", "Opening 3-dot menus to copy the real post links...");
-      await resolvePermalinksViaMenu(page, posts, log);
+      await resolvePermalinksViaMenu(page, posts, log, isStopped);
     }
 
     if (cardsSeen === 0) {

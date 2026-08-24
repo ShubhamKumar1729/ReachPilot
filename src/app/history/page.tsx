@@ -9,6 +9,7 @@ import {
   ExternalLink,
   Sparkles,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
 import type { SentRow } from "@/lib/types";
 import { fmtDate } from "@/lib/types";
@@ -36,6 +37,11 @@ export default function HistoryPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const del = async (id: string) => {
+    await fetch(`/api/sent/${id}`, { method: "DELETE" }).catch(() => undefined);
+    load();
+  };
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -128,18 +134,19 @@ export default function HistoryPage() {
                 <th className="px-5 py-3.5 font-medium">ai</th>
                 <th className="px-5 py-3.5 font-medium">post</th>
                 <th className="px-5 py-3.5 font-medium">time</th>
+                <th className="px-3 py-3.5" />
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-14 text-center font-mono text-[12px] text-fog">
+                  <td colSpan={7} className="px-5 py-14 text-center font-mono text-[12px] text-fog">
                     loading outbox…
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-14 text-center">
+                  <td colSpan={7} className="px-5 py-14 text-center">
                     <p className="text-[15px] font-semibold text-mist">Nothing here yet</p>
                     <p className="mt-1 text-[12.5px] text-fog">
                       Launch a run from the <Link href="/run/new" className="text-acid underline underline-offset-4">console</Link> to start filling the outbox.
@@ -188,6 +195,15 @@ export default function HistoryPage() {
                       </a>
                     </td>
                     <td className="px-5 py-3.5 font-mono text-[11px] text-fog">{fmtDate(r.sentAt)}</td>
+                    <td className="px-3 py-3.5">
+                      <button
+                        onClick={() => del(r.id)}
+                        className="rounded-md p-1.5 text-fog/50 transition-colors hover:bg-redX/10 hover:text-redX"
+                        title="Delete this record"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
