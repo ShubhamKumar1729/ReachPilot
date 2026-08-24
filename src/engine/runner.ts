@@ -165,6 +165,15 @@ async function executeRun(runId: string): Promise<void> {
       if (seenPosts.has(postKey)) continue;
       seenPosts.add(postKey);
 
+      if (!postLink) {
+        skipped++;
+        await L(
+          "warn",
+          `Post ${i + 1} (${post.author || "unknown"}) — no post link could be captured; the Post Link line is mandatory, so this post is skipped`
+        );
+        continue;
+      }
+
       await setRunStatus(runId, { postsScanned: i + 1 });
 
       const verdict = shouldSendToPost(run.role, post.text);

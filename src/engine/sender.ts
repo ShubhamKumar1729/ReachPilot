@@ -35,8 +35,8 @@ export async function sendEmail(args: SendArgs): Promise<void> {
     ...(config.ccEmails.length > 0 ? { cc: config.ccEmails.join(", ") } : {}),
     ...(config.bccEmails.length > 0 ? { bcc: config.bccEmails.join(", ") } : {}),
     subject: args.subject,
+    // Plain text only — a normal email, no HTML part.
     text: args.text,
-    html: args.html,
     attachments: [
       {
         filename: args.attachmentName,
