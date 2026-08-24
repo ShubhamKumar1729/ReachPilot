@@ -292,8 +292,8 @@ export default function NewRunPage() {
                       title="LIVE — send emails"
                       body={
                         settings?.engineMode === "live"
-                          ? "Scrapes LinkedIn via Playwright (persistent login) and sends real emails through Gmail."
-                          : "ENGINE_MODE=simulate → sends REAL emails for simulated posts. Set ENGINE_MODE=live locally to scrape LinkedIn."
+                          ? "Opens a NEW Chromium tab with your saved LinkedIn session — first run signs in once (the window waits for you) and remembers it forever. It searches your query, filters genuine posts for your role, and emails the recruiter addresses it finds in the posts via Gmail."
+                          : "ENGINE_MODE=simulate → sends REAL emails for simulated posts (no browser). Set ENGINE_MODE=live to open the real LinkedIn browser flow."
                       }
                       disabled={!smtpOn}
                       warn={!smtpOn ? "Gmail SMTP not configured" : undefined}
@@ -435,7 +435,9 @@ function WizardField({
         <span className="text-acid">$</span> {label}
       </p>
       <div className="mt-2.5">{children}</div>
-      <p className="mt-2 font-mono text-[10.5px] leading-relaxed text-fog/80">// {hint}</p>
+      <p className="mt-2 font-mono text-[10.5px] leading-relaxed text-fog/80">
+        {"// "} {hint}
+      </p>
     </div>
   );
 }

@@ -82,6 +82,7 @@ export interface SettingsPayload {
     waitBetweenRolesMax: number;
   };
   engineMode: string;
+  linkedinLoginWaitSec: number;
   dailyTarget: number;
   resume: { exists: boolean; filename: string; path: string; size: number };
 }

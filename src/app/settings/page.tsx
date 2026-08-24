@@ -132,8 +132,9 @@ export default function SettingsPage() {
           </p>
           <dl className="space-y-3">
             {s &&
-              ([
-                ["engine mode", s.engineMode],
+                ([
+                ["engine mode", s.engineMode === "live" ? "live (real Chromium + LinkedIn)" : "simulate (no browser)"],
+                ["linkedin login wait", `${s.linkedinLoginWaitSec}s (first run only — session is stored after)`],
                 ["default max emails / role", String(s.bot.maxEmailsPerRole)],
                 ["delay between emails", `${s.bot.delayBetweenEmails}s`],
                 ["scroll rounds", String(s.bot.scrollRounds)],

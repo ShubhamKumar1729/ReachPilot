@@ -55,6 +55,7 @@ export async function GET() {
     bccEmails: config.bccEmails.map(maskEmail),
     bot: config.bot,
     engineMode: config.engineMode,
+    linkedinLoginWaitSec: config.linkedinLoginWaitSec,
     dailyTarget: config.dailyResponseTarget,
     resume: {
       exists: baseResumeExists(),
