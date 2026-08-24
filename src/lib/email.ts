@@ -133,7 +133,7 @@ export function buildEmail(opts: {
 
   let tail = "";
   if (reference) tail += `\n\n\nFOR REFERENCE\n\n${reference}`;
-  if (postLinkClean) tail += `\n\nPost Link: ${mdLink(postLinkClean, postLinkClean)}`;
+  if (postLinkClean) tail += `\n\nPost Link: ${postLinkClean}`;
 
   const text = `Dear Hiring Manager,
 
