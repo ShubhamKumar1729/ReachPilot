@@ -81,9 +81,91 @@ async function waitForManualLogin(
   return false;
 }
 
-interface FoundCard {
-  text: string;
-  href: string;
+/**
+ * Scroll the feed. LinkedIn's search results live in an INNER scroll
+ * container — plain wheel events often hit the window and nothing moves.
+ * So: aim the mouse at the results column, scroll the real inner
+ * scroller, and wheel as well (extra scroll just lazy-loads more posts).
+ */
+async function scrollFeed(page: PWPage): Promise<void> {
+  try {
+    await page.mouse.move(900, 500);
+  } catch {
+    /* ignore */
+  }
+  try {
+    await page.evaluate(() => {
+      const all = Array.from(document.querySelectorAll("main *"));
+      const scrollers = all.filter(
+        (el) =>
+          el.scrollHeight > el.clientHeight + 200 &&
+          ["auto", "scroll"].includes(getComputedStyle(el).overflowY)
+      );
+      scrollers.sort((a, b) => b.scrollHeight - a.scrollHeight);
+      if (scrollers[0]) (scrollers[0] as HTMLElement).scrollBy(0, 1600);
+      else window.scrollBy(0, 1600);
+    });
+  } catch {
+    /* ignore */
+  }
+  try {
+    await page.mouse.wheel(0, 1600);
+  } catch {
+    /* ignore */
+  }
+  await page.waitForTimeout(1200); // let lazy-loaded posts render
+}
+
+/**
+ * Log the page's "DOM fingerprint": most-used CSS classes + most-common
+ * link href patterns. This reveals the current LinkedIn markup so the
+ * card selectors can be written precisely.
+ */
+async function logDomFingerprint(page: PWPage, log: LogFn): Promise<void> {
+  try {
+    const fp = await page.evaluate(() => {
+      const classCount: Record<string, number> = {};
+      for (const el of Array.from(document.querySelectorAll("[class]"))) {
+        for (const c of el.classList) classCount[c] = (classCount[c] || 0) + 1;
+      }
+      const topClasses = Object.entries(classCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 25)
+        .map(([c, n]) => `${c}x${n}`);
+      const hrefGroups: Record<string, number> = {};
+      const links = Array.from(document.querySelectorAll("a[href]"));
+      for (const a of links) {
+        const h = a.getAttribute("href") || "";
+        const key = h.split("?")[0].replace(/\d{4,}/g, "N").slice(0, 50) || "(no-href)";
+        hrefGroups[key] = (hrefGroups[key] || 0) + 1;
+      }
+      const topHrefs = Object.entries(hrefGroups)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 15)
+        .map(([h, n]) => `${h}x${n}`);
+      return { topClasses, topHrefs, linkCount: links.length };
+    });
+    log("warn", `DOM FINGERPRINT — top classes: ${fp.topClasses.join(", ")}`);
+    log("warn", `DOM FINGERPRINT — top hrefs (${fp.linkCount} links total): ${fp.topHrefs.join(" | ")}`);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Save the results area HTML next to the screenshot for ground truth. */
+async function saveHtmlSnapshot(page: PWPage, log: LogFn): Promise<void> {
+  const dir = path.join(process.cwd(), "output", "debug");
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, `linkedin_debug_${Date.now()}.html`);
+  try {
+    const html = await page.evaluate(
+      () => (document.querySelector("main") || document.body).outerHTML
+    );
+    fs.writeFileSync(file, html.slice(0, 3_000_000));
+    log("warn", `PAGE HTML SAVED: ${file} — attach this file to your next message so I can read the exact page structure.`);
+  } catch {
+    /* ignore */
+  }
 }
 
 async function isVisible(
@@ -467,8 +549,7 @@ export async function scrapeLinkedInPosts(opts: {
       if (newCards === 0) stagnantRounds++;
       else stagnantRounds = 0;
 
-      await page.mouse.wheel(0, 1800);
-      await page.waitForTimeout(900);
+      await scrollFeed(page);
     }
 
     if (cardsSeen === 0) {
@@ -498,6 +579,8 @@ export async function scrapeLinkedInPosts(opts: {
       if (bodyText) {
         log("warn", `PAGE TEXT (first 1200 chars): ${bodyText}`);
       }
+      await logDomFingerprint(page, log);
+      await saveHtmlSnapshot(page, log);
     } else if (posts.length === 0) {
       log(
         "warn",
