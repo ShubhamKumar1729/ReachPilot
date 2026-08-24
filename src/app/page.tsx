@@ -60,6 +60,7 @@ export default function Dashboard() {
     <div className="pt-10">
       {/* HERO */}
       <section className="fade-up relative overflow-hidden rounded-2xl border border-hairline bg-panel p-8 sm:p-12">
+        <div className="scanline" />
         <div className="relative flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="label-mono mb-4 flex items-center gap-2">
@@ -86,11 +87,11 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* capabilities */}
-        <div className="mt-10 border-t border-hairline pt-5">
-          <div className="flex flex-wrap gap-2">
-            {CAPS.map((c) => (
-              <span key={c} className="chip whitespace-nowrap">
+        {/* capability marquee */}
+        <div className="relative mt-10 overflow-hidden border-t border-hairline pt-5 [mask-image:linear-gradient(90deg,transparent,black_8%,black_92%,transparent)]">
+          <div className="flex w-max animate-[marquee-x_26s_linear_infinite] gap-3">
+            {[...CAPS, ...CAPS].map((c, i) => (
+              <span key={i} className="chip whitespace-nowrap">
                 <Sparkles size={10} className="text-acid" /> {c}
               </span>
             ))}

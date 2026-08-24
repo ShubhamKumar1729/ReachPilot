@@ -151,6 +151,7 @@ export default function SettingsPage() {
 
         {/* how to run live */}
         <div className="panel fade-up relative overflow-hidden p-6" style={{ animationDelay: "240ms" }}>
+          <div className="scanline" />
           <p className="label-mono mb-5 flex items-center gap-2">
             <TerminalSquare size={12} className="text-acid" /> single-terminal launch
           </p>

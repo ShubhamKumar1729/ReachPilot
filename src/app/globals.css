@@ -281,6 +281,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fade-up, .log-line, .pulse-dot, .caret { animation: none !important; }
+  .fade-up, .log-line, .pulse-dot, .caret, .scanline {
+    animation: none !important;
+  }
   * { transition-duration: 0.01ms !important; }
 }

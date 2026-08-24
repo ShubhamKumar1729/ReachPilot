@@ -22,7 +22,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${spaceGrotesk.variable} ${jetbrains.variable}`}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${spaceGrotesk.variable} ${jetbrains.variable}`}
+    >
       <body className="antialiased">
         <script
           dangerouslySetInnerHTML={{

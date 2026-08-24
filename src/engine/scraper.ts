@@ -660,14 +660,18 @@ async function resolvePermalinksViaMenu(
     }
 
     try {
-      await btnEl.scrollIntoViewIfNeeded({ timeout: 2000 });
+      // Put the button in the MIDDLE of the viewport — top feed cards sit
+      // under LinkedIn's sticky header, which swallows a forced click there.
+      await btnEl.evaluate((el) =>
+        (el as HTMLElement).scrollIntoView({ block: "center" })
+      );
     } catch {
       continue;
     }
-    await sleep(500);
+    await sleep(600);
 
-    // 3) Open the menu and pick "Copy link to post" — with hover, polling
-    //    (LinkedIn menus render lazily) and one retry.
+    // 3) Open the menu and pick "Copy link to post" — hover, a real (non-forced)
+    //    click, long polling (LinkedIn menus render lazily), up to 3 attempts.
     const findCopyLinkItem = () =>
       page
         .evaluate(() => {
@@ -695,27 +699,38 @@ async function resolvePermalinksViaMenu(
         .catch(() => false);
 
     let linkUrl = "";
-    for (let attempt = 1; attempt <= 2 && !linkUrl; attempt++) {
+    for (let attempt = 1; attempt <= 3 && !linkUrl; attempt++) {
+      // Clean slate: close any menu/overlay left over from a previous attempt.
+      await page.keyboard.press("Escape").catch(() => undefined);
+      await sleep(300);
       try {
-        await btnEl.hover({ force: true, timeout: 2000 });
+        await btnEl.hover({ timeout: 2000 });
       } catch {
-        /* hover is best-effort */
+        try {
+          await btnEl.hover({ force: true, timeout: 2000 });
+        } catch {
+          /* hover is best-effort */
+        }
       }
       await sleep(400);
       try {
-        await btnEl.click({ force: true, timeout: 3000 });
+        await btnEl.click({ timeout: 3000 });
       } catch {
-        log(
-          "warn",
-          `Post link: could not click the 3-dot button for ${targetEmail} (attempt ${attempt}).`
-        );
-        break;
+        try {
+          await btnEl.click({ force: true, timeout: 3000 });
+        } catch {
+          log(
+            "warn",
+            `Post link: could not click the 3-dot button for ${targetEmail} (attempt ${attempt}).`
+          );
+          break;
+        }
       }
 
-      // Poll for the menu item (up to ~3.5s of lazy rendering).
+      // Poll for the menu item (up to ~6s of lazy rendering).
       let clicked = false;
-      for (let w = 0; w < 5 && !clicked; w++) {
-        await sleep(700);
+      for (let w = 0; w < 8 && !clicked; w++) {
+        await sleep(750);
         clicked = await findCopyLinkItem();
       }
       if (!clicked) {
