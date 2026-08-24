@@ -268,8 +268,33 @@ body {
 }
 .fade-up { animation: fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
-/* legacy decoration hooks — neutralized, kept for compatibility */
-.scanline { display: none; }
+/* brand motion: capability marquee + soft multi-color light sweep */
+@keyframes marquee-x {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes scan {
+  0% { transform: translateY(-110%); }
+  100% { transform: translateY(620%); }
+}
+.scanline {
+  position: absolute;
+  left: -2%;
+  right: -2%;
+  top: 0;
+  height: 26%;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    color-mix(in srgb, var(--rp-acid) 9%, transparent) 35%,
+    color-mix(in srgb, var(--rp-amber) 7%, transparent) 55%,
+    transparent 100%
+  );
+  animation: scan 7s linear infinite;
+  will-change: transform;
+  pointer-events: none;
+}
 
 /* smooth cross-fade while the theme toggles */
 .theme-anim,
