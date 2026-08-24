@@ -153,7 +153,7 @@ export default function HistoryPage() {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-left">
             <thead>
-              <tr className="border-b border-hairline bg-black/30 font-mono text-[10px] uppercase tracking-[0.16em] text-fog">
+              <tr className="border-b border-hairline bg-panel2 font-mono text-[10px] uppercase tracking-[0.16em] text-fog">
                 <th className="px-5 py-3.5 font-medium">recruiter email</th>
                 <th className="px-5 py-3.5 font-medium">author / role</th>
                 <th className="px-5 py-3.5 font-medium">status</th>
@@ -181,7 +181,7 @@ export default function HistoryPage() {
                 </tr>
               ) : (
                 filtered.map((r) => (
-                  <tr key={r.id} className="border-b border-hairline/60 transition-colors last:border-0 hover:bg-white/[0.025]">
+                  <tr key={r.id} className="border-b border-hairline/60 transition-colors last:border-0 hover:bg-panel2/60">
                     <td className="px-5 py-3.5">
                       <span className="font-mono text-[12.5px] text-mist">{r.email}</span>
                       {r.error && <p className="mt-0.5 max-w-64 truncate text-[10.5px] text-redX">{r.error}</p>}
@@ -194,7 +194,7 @@ export default function HistoryPage() {
                         <span
                           className={`chip !py-0.5 border ${
                             r.status === "SENT"
-                              ? "text-acid border-acid/40 bg-acid/10"
+                              ? "text-ok border-ok/40 bg-ok/10"
                               : "text-redX border-redX/40 bg-redX/10"
                           }`}
                         >

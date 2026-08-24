@@ -100,7 +100,7 @@ export function runStatusColor(status: string): string {
     case "queued":
       return "text-cyanX border-cyanX/40 bg-cyanX/10";
     case "completed":
-      return "text-blueX border-blueX/40 bg-blueX/10";
+      return "text-ok border-ok/40 bg-ok/10";
     case "stopped":
       return "text-amberX border-amberX/40 bg-amberX/10";
     case "failed":

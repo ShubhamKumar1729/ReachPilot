@@ -28,7 +28,7 @@ interface PollPayload {
 
 const LEVEL_STYLE: Record<string, { text: string; tag: string }> = {
   info: { text: "text-fog", tag: "INFO" },
-  ok: { text: "text-acid", tag: " OK " },
+  ok: { text: "text-ok", tag: " OK " },
   warn: { text: "text-amberX", tag: "WARN" },
   err: { text: "text-redX", tag: "ERR " },
   mail: { text: "text-blueX", tag: "MAIL" },
@@ -139,10 +139,10 @@ export default function RunConsolePage() {
         <Metric icon={<ShieldCheck size={15} />} label="emails processed" value={run ? `${run.sentCount} / ${run.maxEmails}` : "…"} highlight />
         <Metric icon={<MailX size={15} />} label="skipped / filtered" value={run ? String(run.skippedCount) : "…"} />
         <Metric icon={<Gauge size={15} />} label="progress" value={`${pct}%`} />
-        <div className="col-span-2 bg-black/30 px-5 pb-4 pt-1 sm:col-span-4">
-          <div className="h-1.5 overflow-hidden rounded-full bg-hairline">
+        <div className="col-span-2 bg-well px-5 pb-4 pt-1 sm:col-span-4">
+          <div className="h-1.5 overflow-hidden rounded-full bg-hairline2/60">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-blueX via-acid to-acid transition-all duration-700"
+              className="h-full rounded-full bg-acid transition-all duration-700"
               style={{ width: `${pct}%` }}
             />
           </div>
@@ -171,7 +171,7 @@ export default function RunConsolePage() {
           <div
             ref={termRef}
             onScroll={onTermScroll}
-            className="h-[460px] space-y-[7px] overflow-y-auto bg-black/40 px-5 py-4 font-mono text-[12px] leading-relaxed"
+            className="h-[460px] space-y-[7px] overflow-y-auto bg-well2 px-5 py-4 font-mono text-[12px] leading-relaxed"
           >
             {!data || data.logs.length === 0 ? (
               <p className="text-fog">$ awaiting engine output<span className="caret" /></p>
@@ -208,14 +208,14 @@ export default function RunConsolePage() {
               </div>
             ) : (
               data.sent.map((s) => (
-                <div key={s.id} className="log-line rounded-xl border border-hairline bg-black/25 p-3.5">
+                <div key={s.id} className="log-line rounded-xl border border-hairline bg-well p-3.5">
                   <div className="flex items-center justify-between gap-2">
                     <p className="truncate font-mono text-[12.5px] font-semibold text-mist">{s.email}</p>
                     <span className="flex shrink-0 items-center gap-1.5">
                       <span
                         className={`chip !py-0.5 border ${
                           s.status === "SENT"
-                            ? "text-acid border-acid/40 bg-acid/10"
+                            ? "text-ok border-ok/40 bg-ok/10"
                             : "text-redX border-redX/40 bg-redX/10"
                         }`}
                       >
@@ -277,7 +277,7 @@ function Metric({
   highlight?: boolean;
 }) {
   return (
-    <div className="bg-black/30 px-5 py-4">
+    <div className="bg-well px-5 py-4">
       <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-fog">
         <span className={highlight ? "text-acid" : "text-fog"}>{icon}</span> {label}
       </p>

@@ -59,8 +59,7 @@ export default function Dashboard() {
   return (
     <div className="pt-10">
       {/* HERO */}
-      <section className="fade-up relative overflow-hidden rounded-3xl border border-hairline bg-gradient-to-b from-panel2/60 to-panel p-8 sm:p-12">
-        <div className="scanline" />
+      <section className="fade-up relative overflow-hidden rounded-2xl border border-hairline bg-panel p-8 sm:p-12">
         <div className="relative flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="label-mono mb-4 flex items-center gap-2">
@@ -87,11 +86,11 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* capability marquee */}
-        <div className="relative mt-10 overflow-hidden border-t border-hairline pt-5 [mask-image:linear-gradient(90deg,transparent,black_8%,black_92%,transparent)]">
-          <div className="flex w-max animate-[marquee-x_26s_linear_infinite] gap-3">
-            {[...CAPS, ...CAPS].map((c, i) => (
-              <span key={i} className="chip whitespace-nowrap">
+        {/* capabilities */}
+        <div className="mt-10 border-t border-hairline pt-5">
+          <div className="flex flex-wrap gap-2">
+            {CAPS.map((c) => (
+              <span key={c} className="chip whitespace-nowrap">
                 <Sparkles size={10} className="text-acid" /> {c}
               </span>
             ))}
@@ -119,7 +118,7 @@ export default function Dashboard() {
         />
         <div className="panel fade-up p-5" style={{ animationDelay: "120ms" }}>
           <div className="flex items-center justify-between">
-            <span className="grid size-8 place-items-center rounded-lg border border-hairline2 bg-white/5 text-amberX">
+            <span className="grid size-8 place-items-center rounded-lg border border-hairline2 bg-panel2 text-amberX">
               <Crosshair size={16} />
             </span>
             <span className="font-mono text-[10px] uppercase tracking-widest text-fog">today</span>
@@ -128,7 +127,7 @@ export default function Dashboard() {
           <p className="mt-1 text-xs text-fog">sent today · target {target}/day</p>
           <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-hairline">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-amberX to-acid transition-all duration-700"
+              className="h-full rounded-full bg-acid transition-all duration-700"
               style={{ width: `${todayPct}%` }}
             />
           </div>
@@ -160,7 +159,7 @@ export default function Dashboard() {
                 <Link
                   key={r.id}
                   href={`/run/${r.id}`}
-                  className="group flex items-center justify-between gap-3 rounded-xl border border-hairline bg-black/20 px-4 py-3 transition-all hover:border-acid/35 hover:bg-black/40"
+                  className="group flex items-center justify-between gap-3 rounded-xl border border-hairline bg-well px-4 py-3 transition-colors hover:border-acid/40 hover:bg-well2"
                 >
                   <div className="min-w-0">
                     <p className="truncate text-[14px] font-semibold text-mist group-hover:text-paper">
@@ -202,13 +201,13 @@ export default function Dashboard() {
           ) : (
             <div className="space-y-2.5">
               {data.recentSent.map((s) => (
-                <div key={s.id} className="rounded-xl border border-hairline bg-black/20 px-4 py-3">
+                <div key={s.id} className="rounded-xl border border-hairline bg-well px-4 py-3">
                   <div className="flex items-center justify-between gap-2">
                     <p className="truncate font-mono text-[12.5px] text-mist">{s.email}</p>
                     <span
                       className={`chip !py-0.5 border ${
                         s.status === "SENT"
-                          ? "text-acid border-acid/40 bg-acid/10"
+                          ? "text-ok border-ok/40 bg-ok/10"
                           : "text-redX border-redX/40 bg-redX/10"
                       }`}
                     >
@@ -268,7 +267,7 @@ function StatCard({
   return (
     <div className="panel fade-up p-5" style={{ animationDelay: `${delay}ms` }}>
       <div className="flex items-center justify-between">
-        <span className={`grid size-8 place-items-center rounded-lg border border-hairline2 bg-white/5 ${colorMap[accent]}`}>
+        <span className={`grid size-8 place-items-center rounded-lg border border-hairline2 bg-panel2 ${colorMap[accent]}`}>
           {icon}
         </span>
       </div>
@@ -292,7 +291,7 @@ function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-hairline2 px-6 py-10 text-center">
-      <span className="grid size-12 place-items-center rounded-2xl border border-hairline2 bg-white/5 text-fog">{icon}</span>
+      <span className="grid size-12 place-items-center rounded-xl border border-hairline2 bg-panel2 text-fog">{icon}</span>
       <p className="mt-4 text-[15px] font-semibold text-mist">{title}</p>
       <p className="mt-1 max-w-xs text-[12.5px] leading-relaxed text-fog">{body}</p>
       {cta && (

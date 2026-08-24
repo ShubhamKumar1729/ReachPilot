@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Radar, LayoutDashboard, Rocket, History, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const LINKS = [
   { href: "/", label: "Console", icon: LayoutDashboard },
@@ -24,10 +25,10 @@ export default function Nav() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-hairline bg-ink/80 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-hairline bg-ink/90 backdrop-blur">
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="group flex items-center gap-3">
-          <span className="grid size-9 place-items-center rounded-xl border border-acid/30 bg-acid/10 text-acid transition-all group-hover:shadow-[0_0_24px_-4px_rgba(184,242,76,0.5)]">
+          <span className="grid size-9 place-items-center rounded-lg border border-acid/30 bg-acid/10 text-acid transition-colors group-hover:border-acid/60">
             <Radar size={18} strokeWidth={2.2} />
           </span>
           <span className="leading-tight">
@@ -48,10 +49,10 @@ export default function Nav() {
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-medium transition-all ${
+                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors ${
                   active
-                    ? "bg-acid/12 text-acid shadow-[inset_0_0_0_1px_rgba(184,242,76,0.25)]"
-                    : "text-fog hover:bg-white/5 hover:text-mist"
+                    ? "bg-acid/10 text-acid"
+                    : "text-fog hover:bg-panel2 hover:text-mist"
                 }`}
               >
                 <Icon size={15} strokeWidth={2.2} />
@@ -59,6 +60,9 @@ export default function Nav() {
               </Link>
             );
           })}
+          <span className="ml-1 hidden sm:contents">
+            <ThemeToggle />
+          </span>
           <span
             className="ml-1 hidden items-center gap-2 sm:flex"
             title="Gmail SMTP status"

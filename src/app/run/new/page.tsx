@@ -274,7 +274,7 @@ export default function NewRunPage() {
                   label="confirm & launch"
                   hint="every run is live: real Chromium tab, real LinkedIn, real Gmail sends"
                 >
-                  <div className="rounded-xl border border-hairline2 bg-black/25 p-4 text-[13px] leading-relaxed text-fog">
+                  <div className="rounded-xl border border-hairline2 bg-well p-4 text-[13px] leading-relaxed text-fog">
                     <p>When you hit launch, the engine will:</p>
                     <ol className="mt-2 list-decimal space-y-1.5 pl-5">
                       <li>
@@ -404,7 +404,7 @@ export default function NewRunPage() {
             <p className="label-mono mb-4 flex items-center gap-2">
               <Sparkles size={12} className="text-violetX" /> subject preview
             </p>
-            <p className="rounded-xl border border-hairline bg-black/30 px-4 py-3 font-mono text-[12.5px] leading-relaxed text-mist">
+            <p className="rounded-xl border border-hairline bg-well px-4 py-3 font-mono text-[12.5px] leading-relaxed text-mist">
               {(role.trim() || "<role>") +
                 " | " +
                 (settings?.candidate.name ?? "…") +
@@ -479,10 +479,10 @@ function ChoiceCard({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-xl border p-4 text-left transition-all ${
+      className={`rounded-xl border p-4 text-left transition-colors ${
         active
-          ? "border-acid/60 bg-acid/10 shadow-[0_0_28px_-10px_rgba(184,242,76,0.45)]"
-          : "border-hairline2 bg-black/20 hover:border-fog/50 hover:bg-black/40"
+          ? "border-acid/60 bg-acid/10"
+          : "border-hairline2 bg-well hover:border-fog/50 hover:bg-well2"
       } ${disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"}`}
     >
       <span className={`flex items-center gap-2 text-[13.5px] font-semibold ${active ? "text-acid" : "text-mist"}`}>

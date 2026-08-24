@@ -73,7 +73,7 @@ export default function SettingsPage() {
             <p className="label-mono mb-3 flex items-center gap-2">
               <FolderOpen size={12} className="text-acid" /> resume file
             </p>
-            <div className="flex items-center gap-3 rounded-xl border border-hairline bg-black/25 px-4 py-3">
+            <div className="flex items-center gap-3 rounded-xl border border-hairline bg-well px-4 py-3">
               <FileText size={17} className={s?.resume.exists ? "text-acid" : "text-fog"} />
               <div className="min-w-0">
                 <p className="truncate font-mono text-[12.5px] text-mist">{s?.resume.filename ?? "…"}</p>
@@ -151,7 +151,6 @@ export default function SettingsPage() {
 
         {/* how to run live */}
         <div className="panel fade-up relative overflow-hidden p-6" style={{ animationDelay: "240ms" }}>
-          <div className="scanline" />
           <p className="label-mono mb-5 flex items-center gap-2">
             <TerminalSquare size={12} className="text-acid" /> single-terminal launch
           </p>
@@ -191,7 +190,7 @@ function ConnRow({
 }) {
   const state = ok ? "ok" : warn ? "warn" : "bad";
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-hairline bg-black/25 px-4 py-3">
+    <div className="flex items-center gap-3 rounded-xl border border-hairline bg-well px-4 py-3">
       <span>
         {state === "ok" ? (
           <CheckCircle2 size={16} className="text-acid" />
