@@ -921,7 +921,7 @@ export async function scrapeLinkedInPosts(opts: {
     {
       const finalClicks = await expandTruncatedPosts(page);
       if (finalClicks > 0) {
-        const finalCards = await findPostCards(page, query);
+        const { cards: finalCards } = await findPostCards(page, query);
         for (const post of posts) {
           const prefix = post.text.slice(0, 120);
           const better = finalCards.find(
