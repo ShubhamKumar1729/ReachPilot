@@ -631,7 +631,16 @@ async function resolvePermalinksViaMenu(
         );
         if (byLabel) return byLabel;
         const iconOnly = cand.filter((b) => !(b.innerText || "").trim());
-        return iconOnly[iconOnly.length - 1] || cand[cand.length - 1] || null;
+        // The ⋮ lives in the card HEADER — pick the topmost icon-only button
+        // so reaction-bar icons can never win.
+        const pick = iconOnly.length
+          ? iconOnly.sort((a, b) => {
+              const ra = (a as HTMLElement).getBoundingClientRect();
+              const rb = (b as HTMLElement).getBoundingClientRect();
+              return ra.top - rb.top;
+            })[0]
+          : cand[cand.length - 1] || null;
+        return pick;
       });
       btnEl = h.asElement();
     } catch {
@@ -651,89 +660,115 @@ async function resolvePermalinksViaMenu(
       continue;
     }
     await sleep(500);
-    try {
-      await btnEl.click({ force: true, timeout: 3000 });
-    } catch {
-      log("warn", `Post link: could not click the 3-dot button for ${targetEmail}.`);
-      continue;
-    }
-    await sleep(1500);
 
-    // 3) "Copy link to post" in the opened menu (deepest exact-text match).
-    const clicked = await page
-      .evaluate(() => {
-        const matches: HTMLElement[] = [];
-        for (const el of Array.from(
-          document.querySelectorAll("div, span, a, li, button, p")
-        )) {
-          const t = (
-            (el as HTMLElement).innerText ||
-            (el as HTMLElement).textContent ||
-            ""
-          )
-            .trim()
-            .toLowerCase();
-          if (t === "copy link to post" || t === "copy link")
-            matches.push(el as HTMLElement);
-        }
-        const target = matches[matches.length - 1];
-        if (target) {
-          target.click();
-          return true;
-        }
-        return false;
-      })
-      .catch(() => false);
-    if (!clicked) {
-      log(
-        "warn",
-        `Post link: menu opened but "Copy link to post" item not found (for ${targetEmail}).`
-      );
-      await page.keyboard.press("Escape").catch(() => undefined);
-      await sleep(600);
-      continue;
-    }
-    await sleep(2000);
+    // 3) Open the menu and pick "Copy link to post" — with hover, polling
+    //    (LinkedIn menus render lazily) and one retry.
+    const findCopyLinkItem = () =>
+      page
+        .evaluate(() => {
+          const matches: HTMLElement[] = [];
+          for (const el of Array.from(
+            document.querySelectorAll("div, span, a, li, button, p")
+          )) {
+            const t = (
+              (el as HTMLElement).innerText ||
+              (el as HTMLElement).textContent ||
+              ""
+            )
+              .trim()
+              .toLowerCase();
+            if (t === "copy link to post" || t === "copy link")
+              matches.push(el as HTMLElement);
+          }
+          const target = matches[matches.length - 1];
+          if (target) {
+            target.click();
+            return true;
+          }
+          return false;
+        })
+        .catch(() => false);
 
-    const clip = (await page
-      .evaluate(() => navigator.clipboard.readText().catch(() => ""))
-      .catch(() => "")) as string;
-    await page.keyboard.press("Escape").catch(() => undefined);
-    await sleep(700);
-
-    // "Copy link to post" puts a SHORT lnkd.in link on the clipboard —
-    // accept it, then resolve the redirect to the canonical post URL.
-    const trimmed = clip.trim();
-    const isShortLink = trimmed.includes("lnkd.in");
-    const isFullLink =
-      trimmed.includes("linkedin.com") &&
-      (trimmed.includes("/posts/") ||
-        trimmed.includes("feed/update") ||
-        trimmed.includes("activity"));
-    if (trimmed && (isShortLink || isFullLink)) {
-      let finalLink = trimmed;
-      if (isShortLink) {
-        try {
-          const res = await fetch(trimmed, {
-            redirect: "follow",
-            signal: AbortSignal.timeout(8000),
-          });
-          if (res.url && res.url.includes("linkedin.com")) finalLink = res.url;
-          await res.body?.cancel();
-        } catch {
-          /* keep the short link */
-        }
+    let linkUrl = "";
+    for (let attempt = 1; attempt <= 2 && !linkUrl; attempt++) {
+      try {
+        await btnEl.hover({ force: true, timeout: 2000 });
+      } catch {
+        /* hover is best-effort */
       }
-      post.postLink = finalLink;
+      await sleep(400);
+      try {
+        await btnEl.click({ force: true, timeout: 3000 });
+      } catch {
+        log(
+          "warn",
+          `Post link: could not click the 3-dot button for ${targetEmail} (attempt ${attempt}).`
+        );
+        break;
+      }
+
+      // Poll for the menu item (up to ~3.5s of lazy rendering).
+      let clicked = false;
+      for (let w = 0; w < 5 && !clicked; w++) {
+        await sleep(700);
+        clicked = await findCopyLinkItem();
+      }
+      if (!clicked) {
+        log(
+          "warn",
+          `Post link: "Copy link to post" did not appear after the 3-dot click (attempt ${attempt}, ${targetEmail}).`
+        );
+        await page.keyboard.press("Escape").catch(() => undefined);
+        await sleep(900);
+        continue;
+      }
+      await sleep(2000);
+
+      const clip = (await page
+        .evaluate(() => navigator.clipboard.readText().catch(() => ""))
+        .catch(() => "")) as string;
+      await page.keyboard.press("Escape").catch(() => undefined);
+      await sleep(700);
+
+      // "Copy link to post" puts a SHORT lnkd.in link on the clipboard —
+      // accept it, then resolve the redirect to the canonical post URL.
+      const trimmed = clip.trim();
+      const isShortLink = trimmed.includes("lnkd.in");
+      const isFullLink =
+        trimmed.includes("linkedin.com") &&
+        (trimmed.includes("/posts/") ||
+          trimmed.includes("feed/update") ||
+          trimmed.includes("activity"));
+      if (trimmed && (isShortLink || isFullLink)) {
+        let finalLink = trimmed;
+        if (isShortLink) {
+          try {
+            const res = await fetch(trimmed, {
+              redirect: "follow",
+              signal: AbortSignal.timeout(8000),
+            });
+            if (res.url && res.url.includes("linkedin.com")) finalLink = res.url;
+            await res.body?.cancel();
+          } catch {
+            /* keep the short link */
+          }
+        }
+        linkUrl = finalLink;
+      } else {
+        log(
+          "warn",
+          `Post link: clipboard read gave no usable URL for ${targetEmail} (got: ${
+            clip ? clip.slice(0, 60) : "empty"
+          }).`
+        );
+        // Stale/different content — one retry with a fresh menu.
+      }
+    }
+
+    if (linkUrl) {
+      post.postLink = linkUrl;
       captured++;
-      log("ok", `Post link captured for ${targetEmail}: ${finalLink.slice(0, 90)}`);
-    } else {
-      log(
-        "warn",
-        `Post link: clipboard read gave no usable URL for ${targetEmail} (got: ${
-          clip ? clip.slice(0, 60) : "empty"
-        }).`
-      );
+      log("ok", `Post link captured for ${targetEmail}: ${linkUrl.slice(0, 90)}`);
     }
   }
 
@@ -861,10 +896,15 @@ export async function scrapeLinkedInPosts(opts: {
         { timeout: 15_000 }
       );
     } catch {
-      log(
-        "warn",
-        "No result cards rendered within 15s — LinkedIn may have no results for this query (check for typos), or an interstitial dialog is blocking the page."
-      );
+      // 2026 markup often matches none of those selectors — probe
+      // heuristically before alarming.
+      const probe = (await findPostCards(page, query)).cards.length;
+      if (probe === 0) {
+        log(
+          "warn",
+          "No result cards rendered within 15s — LinkedIn may have no results for this query (check for typos), or an interstitial dialog is blocking the page."
+        );
+      }
     }
     await page.waitForTimeout(1500);
 
