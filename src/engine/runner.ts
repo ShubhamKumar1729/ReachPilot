@@ -219,6 +219,7 @@ async function executeRun(runId: string): Promise<void> {
         const { subject, text, html } = buildEmail({
           role: run.role,
           matchedSkills,
+          postText: post.text,
           postLink,
         });
         const attachmentPath = customPdfPath ?? basePdf;

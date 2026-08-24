@@ -1,4 +1,5 @@
 import { config } from "./config";
+import { clean } from "./filters";
 
 function esc(s: string): string {
   return s
@@ -14,46 +15,122 @@ export interface EmailPayload {
   html: string;
 }
 
+const ACRONYMS = new Set([
+  "sql", "api", "apis", "ai", "ml", "mlops", "c2c", "w2", "aws", "k8s",
+  "sre", "scrum", "agile", "hr", "qa", "jd",
+]);
+
+const SPECIAL_ROLE_WORDS: Record<string, string> = { devops: "DevOps" };
+
+/** "java developer" -> "Java Developer" (keeps acronyms like SQL/AI). */
+export function displayRole(role: string): string {
+  return clean(role)
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => {
+      const low = w.toLowerCase();
+      if (SPECIAL_ROLE_WORDS[low]) return SPECIAL_ROLE_WORDS[low];
+      if (ACRONYMS.has(low)) return low.toUpperCase();
+      return w.charAt(0).toUpperCase() + w.slice(1);
+    })
+    .join(" ");
+}
+
+/** Sensible pitch skills when Groq tailoring is off. */
+function defaultSkills(role: string): string {
+  const low = role.toLowerCase();
+  if (/java/.test(low)) return "Java, Spring Boot, SQL and REST APIs";
+  if (/product analyst|analyst/.test(low))
+    return "SQL, Python, Product Analytics and A/B Testing";
+  if (/python|data/.test(low)) return "Python, SQL, Data Analysis and Automation";
+  if (/devops|sre|cloud|site reliability/.test(low))
+    return "Cloud Infrastructure, Automation, CI/CD, Monitoring and Production Support";
+  if (/react|frontend|front-end|full[- ]?stack/.test(low))
+    return "React, JavaScript, TypeScript, Node.js and REST APIs";
+  if (/node/.test(low)) return "Node.js, Express, SQL and REST APIs";
+  return "the skills and technologies relevant to this role";
+}
+
+function mdLink(text: string, href: string): string {
+  return `[${text}](${href})`;
+}
+
+/**
+ * Post text for the "FOR REFERENCE" section — the post itself, minus
+ * LinkedIn UI chrome (labels, degree markers, action buttons).
+ */
+export function postReferenceExcerpt(raw: string, max = 1200): string {
+  const uiLine =
+    /^(feed post|reposted|promoted|sponsored|follow|following|connect|message|like|comment|share|repost|save|more options|copy link|copy link to post|copy post link|view profile|show more|show less|hide expanded content|view more comments|no results)$/i;
+  const lines = raw
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => {
+      if (!l) return true;
+      if (uiLine.test(l)) return false;
+      if (/^•\s*\d+(st|nd|rd|th)\+?$/.test(l)) return false;
+      if (/^\d+[hdmwy]\b/.test(l)) return false;
+      return true;
+    });
+  let out = lines
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  if (out.length > max) out = `${out.slice(0, max).trimEnd()}…`;
+  return out;
+}
+
 export function buildSubject(role: string): string {
   const c = config.candidate;
-  return `${role} | ${c.name} | ${c.experience} | ${c.availability}`;
+  return `${displayRole(role)} | ${c.name} | ${c.experience} | ${c.availability}`;
 }
 
 /**
  * Email body in the exact submission format:
  * greeting -> role-specific pitch -> submission details block ->
- * resume note + call CTA -> signature, with the source post link.
+ * resume note + call CTA -> signature -> FOR REFERENCE (post text) -> Post Link.
+ * Links use literal markdown `[text](url)` form, exactly as the format
+ * requires. The HTML view renders the identical text (pre-wrap), so every
+ * client shows the same layout.
  */
 export function buildEmail(opts: {
   role: string;
   matchedSkills: string;
+  postText: string;
   postLink: string;
 }): EmailPayload {
   const c = config.candidate;
-  const { role, matchedSkills, postLink } = opts;
+  const { role, matchedSkills, postText, postLink } = opts;
   const subject = buildSubject(role);
+  const Role = displayRole(role);
+  const skillsLine = matchedSkills || defaultSkills(role);
 
-  const skillsLine =
-    matchedSkills ||
-    "Cloud Infrastructure, Automation, CI/CD, Monitoring and Production Support";
+  const emailLink = c.email ? mdLink(c.email, `mailto:${c.email}`) : "";
+  const linkedinLink = c.linkedin ? mdLink(c.linkedin, c.linkedin) : "";
 
   const details: Array<[string, string]> = [
     ["Candidate Name", c.name],
-    ["Applied Role", role],
+    ["Applied Role", Role],
     ["Total Experience", c.experience],
     ["Phone / Contact", c.phone],
-    ["Email Address", c.email],
+    ["Email Address", emailLink],
     ["Current Location", c.location],
     ["Relocation", c.relocation],
     ["Work Authorization", c.workAuth],
     ["Availability", c.availability],
     ["Rate / Compensation", c.expectedRate],
-    ["LinkedIn Profile", c.linkedin],
+    ["LinkedIn Profile", linkedinLink],
   ];
+
+  const reference = postReferenceExcerpt(postText);
+
+  let tail = "";
+  if (reference) tail += `\n\n\nFOR REFERENCE\n\n${reference}`;
+  if (postLink) tail += `\n\nPost Link: ${mdLink(postLink, postLink)}`;
 
   const text = `Dear Hiring Manager,
 
-I came across your posting for a ${role} position. My hands-on experience with ${skillsLine} maps directly to what you are looking for, and I would welcome the opportunity to be considered.
+I came across your posting for a ${Role} position. My hands-on experience with ${skillsLine} maps directly to what you are looking for, and I would welcome the opportunity to be considered.
 
 Please find my submission details below for your review:
 
@@ -64,59 +141,13 @@ I have attached my updated resume for your review. Are you available for a brief
 
 Best regards,
 ${c.name}
-Phone: ${c.phone} | Email: ${c.email}
-LinkedIn: ${c.linkedin}
-
-Re: your LinkedIn post: ${postLink}`;
-
-  const detailRows = details
-    .map(
-      ([k, v]) => `
-      <tr>
-        <td style="padding:7px 14px;font-size:13px;color:#6b7280;white-space:nowrap;vertical-align:top;border-bottom:1px solid #eef0f3;">${esc(k)}</td>
-        <td style="padding:7px 14px;font-size:13px;color:#111827;font-weight:600;border-bottom:1px solid #eef0f3;word-break:break-word;">${
-          v.includes("http")
-            ? `<a href="${esc(v)}" style="color:#2563eb;text-decoration:none;">${esc(v)}</a>`
-            : k === "Email Address"
-              ? `<a href="mailto:${esc(v)}" style="color:#2563eb;text-decoration:none;">${esc(v)}</a>`
-              : esc(v)
-        }</td>
-      </tr>`
-    )
-    .join("");
+Phone: ${c.phone} | Email: ${emailLink}
+LinkedIn: ${linkedinLink}${tail}`;
 
   const html = `<!DOCTYPE html>
 <html>
-<body style="margin:0;padding:0;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;color:#111827;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:24px 0;">
-<tr><td align="center">
-<table width="640" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e5e7eb;">
-<tr>
-<td style="background:linear-gradient(135deg,#0f172a,#1d4ed8);padding:24px 28px;color:#ffffff;">
-<p style="margin:0;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:#bfdbfe;">Candidate Profile Submission</p>
-<h1 style="margin:10px 0 4px;font-size:23px;font-weight:700;">${esc(c.name)}</h1>
-<p style="margin:0;font-size:13px;color:#dbeafe;">${esc(role)} &nbsp;|&nbsp; ${esc(c.experience)} Experience &nbsp;|&nbsp; ${esc(c.workAuth)} &nbsp;|&nbsp; ${esc(c.availability)}</p>
-</td>
-</tr>
-<tr>
-<td style="padding:26px 28px;font-size:14px;line-height:1.6;">
-<p style="margin:0 0 14px;">Dear Hiring Manager,</p>
-<p style="margin:0 0 14px;">I came across your posting for a <b>${esc(role)}</b> position. My hands-on experience with <b>${esc(skillsLine)}</b> maps directly to what you are looking for, and I would welcome the opportunity to be considered.</p>
-<p style="margin:0 0 10px;">Please find my submission details below for your review:</p>
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin:6px 0 18px;">${detailRows}</table>
-<p style="margin:0 0 14px;">I have attached my updated resume for your review. Are you available for a brief call sometime this week to discuss this position? Thank you for your time and consideration; I look forward to hearing from you.</p>
-<p style="margin:0 0 4px;">Best regards,</p>
-<p style="margin:0;font-weight:700;">${esc(c.name)}</p>
-<p style="margin:4px 0 0;font-size:13px;color:#374151;">Phone: ${esc(c.phone)} &nbsp;|&nbsp; Email: <a href="mailto:${esc(c.email)}" style="color:#2563eb;text-decoration:none;">${esc(c.email)}</a><br>
-LinkedIn: <a href="${esc(c.linkedin)}" style="color:#2563eb;text-decoration:none;">${esc(c.linkedin)}</a></p>
-<div style="margin-top:18px;background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;padding:10px 14px;font-size:12px;color:#1e40af;">
-<b>Re: your LinkedIn post</b><br><a href="${esc(postLink)}" style="color:#2563eb;word-break:break-all;">${esc(postLink)}</a>
-</div>
-</td>
-</tr>
-</table>
-</td></tr>
-</table>
+<body style="margin:0;padding:0;background:#f4f6f8;">
+<div style="max-width:640px;margin:24px auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;padding:26px 28px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.65;color:#111827;white-space:pre-wrap;word-break:break-word;">${esc(text)}</div>
 </body>
 </html>`;
 

@@ -530,6 +530,138 @@ function authorFromCardText(text: string): string {
 }
 
 /**
+ * Resolve real permalinks for posts whose card had no link: open each
+ * post's 3-dot menu and use "Copy link to post" (the link lands in the
+ * clipboard). Cards are identified by their visible recruiter email, so a
+ * menu button is only clicked when its own card contains one of OUR
+ * candidate emails (this also keeps us from clicking Follow/Like etc.).
+ */
+async function resolvePermalinksViaMenu(
+  page: PWPage,
+  posts: ScrapedPost[],
+  log: LogFn
+): Promise<void> {
+  const missing = posts.filter((p) => !p.postLink).slice(0, 12);
+  if (missing.length === 0) return;
+
+  const targets = new Map<string, ScrapedPost[]>();
+  for (const p of missing) {
+    for (const e of p.emails) {
+      const k = e.toLowerCase();
+      targets.set(k, [...(targets.get(k) ?? []), p]);
+    }
+  }
+  const targetList = [...targets.keys()];
+  if (targetList.length === 0) return;
+
+  let captured = 0;
+  try {
+    // Only 3-dot "options/menu/actions" buttons — never Follow/Like/etc.
+    const buttons = page.locator(
+      'button[aria-label*="option" i], button[aria-label*="menu" i], button[aria-label*="action" i]'
+    );
+    const count = Math.min(await buttons.count(), 40);
+
+    for (let i = 0; i < count && targets.size > 0; i++) {
+      const btn = buttons.nth(i);
+
+      // Which of our posts does this button belong to? (closest text-rich
+      // ancestor = the post card)
+      const cardEmail = (await btn
+        .evaluate((el, emailList) => {
+          const emailRe = /[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}/g;
+          let node: Element | null = el;
+          for (let d = 0; d < 15 && node; d++) {
+            node = node.parentElement;
+            if (!node) break;
+            const text = (node as HTMLElement).innerText || "";
+            if (text.length > 80 && text.length <= 8000) {
+              const found = (text.match(emailRe) || [])
+                .map((e) => e.toLowerCase())
+                .find((e) => emailList.includes(e));
+              return found || "";
+            }
+          }
+          return "";
+        }, targetList)
+        .catch(() => "")) as string;
+      if (!cardEmail) continue;
+
+      try {
+        await btn.scrollIntoViewIfNeeded({ timeout: 2000 });
+      } catch {
+        continue;
+      }
+      await sleep(500);
+      try {
+        await btn.click({ force: true, timeout: 3000 });
+      } catch {
+        continue;
+      }
+      await sleep(1200);
+
+      const clicked = await page
+        .evaluate(() => {
+          const items = document.querySelectorAll(
+            'div[role="menuitem"], li[role="menuitem"], [role="menu"] button, [role="menu"] a, [role="menu"] span, [role="menu"] div, [role="menu"] li'
+          );
+          for (const item of items) {
+            const t = (
+              (item as HTMLElement).innerText ||
+              (item as HTMLElement).textContent ||
+              ""
+            )
+              .trim()
+              .toLowerCase();
+            if (
+              t === "copy link to post" ||
+              t === "copy link" ||
+              t === "copy post link"
+            ) {
+              (item as HTMLElement).click();
+              return true;
+            }
+          }
+          return false;
+        })
+        .catch(() => false);
+
+      if (clicked) await sleep(1500);
+      const clip = clicked
+        ? (await page
+            .evaluate(() => navigator.clipboard.readText().catch(() => ""))
+            .catch(() => ""))
+        : "";
+      await page.keyboard.press("Escape").catch(() => undefined);
+      await sleep(600);
+
+      if (
+        clip &&
+        clip.includes("linkedin.com") &&
+        (clip.includes("/posts/") ||
+          clip.includes("feed/update") ||
+          clip.includes("activity"))
+      ) {
+        for (const p of targets.get(cardEmail) ?? []) {
+          if (!p.postLink) p.postLink = clip;
+        }
+        targets.delete(cardEmail);
+        captured++;
+        log("ok", `Post link captured via 3-dot menu "Copy link to post": ${clip.slice(0, 90)}`);
+      }
+    }
+  } catch {
+    /* non-fatal — the email goes out without the Post Link line */
+  }
+
+  const resolved = posts.filter((p) => p.postLink).length;
+  log(
+    "info",
+    `Post links resolved for ${resolved}/${posts.length} post(s) that carry a recruiter email.`
+  );
+}
+
+/**
  * Live LinkedIn scraping via Playwright with a persistent browser profile.
  *
  * - Opens a NEW Chromium tab on every run and navigates it to your search.
@@ -749,6 +881,13 @@ export async function scrapeLinkedInPosts(opts: {
       else stagnantRounds = 0;
 
       await scrollFeed(page);
+    }
+
+    // Capture real permalinks for email-bearing posts via each post's
+    // 3-dot menu -> "Copy link to post" (clipboard).
+    if (posts.length > 0) {
+      log("info", "Opening 3-dot menus to copy the real post links...");
+      await resolvePermalinksViaMenu(page, posts, log);
     }
 
     if (cardsSeen === 0) {
