@@ -18,6 +18,8 @@ export interface ScrapeResult {
 }
 
 type LogFn = (level: string, msg: string) => void;
+type PWPage = import("playwright").Page;
+type PWContext = import("playwright").BrowserContext;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -30,7 +32,7 @@ function isLinkedInLoginPage(url: string): boolean {
 }
 
 /** True when some tab is on a LinkedIn login/checkpoint page. */
-function anyPageOnLogin(context: import("playwright").BrowserContext): boolean {
+function anyPageOnLogin(context: PWContext): boolean {
   return context.pages().some((p) => {
     try {
       return isLinkedInLoginPage(p.url());
@@ -41,7 +43,7 @@ function anyPageOnLogin(context: import("playwright").BrowserContext): boolean {
 }
 
 /** True when some tab already shows a signed-in LinkedIn page. */
-function hasLoggedInPage(context: import("playwright").BrowserContext): boolean {
+function hasLoggedInPage(context: PWContext): boolean {
   return context.pages().some((p) => {
     try {
       return p.url().includes("linkedin.com") && !isLinkedInLoginPage(p.url());
@@ -57,7 +59,7 @@ function hasLoggedInPage(context: import("playwright").BrowserContext): boolean 
  * ONCE — every later run starts already logged in.
  */
 async function waitForManualLogin(
-  context: import("playwright").BrowserContext,
+  context: PWContext,
   log: LogFn,
   waitMs: number
 ): Promise<boolean> {
@@ -76,6 +78,102 @@ async function waitForManualLogin(
     }
   }
   return false;
+}
+
+interface FoundCard {
+  text: string;
+  href: string;
+}
+
+/**
+ * Discover post cards on the results page. LinkedIn renames its CSS classes
+ * often, so we combine (a) known container selectors with (b) a fallback that
+ * anchors on real post links (/feed/update/urn:li:activity:… and /posts/…)
+ * and climbs to the nearest text-rich container.
+ */
+async function findPostCards(page: PWPage): Promise<FoundCard[]> {
+  const cards: FoundCard[] = [];
+  const seen = new Set<string>();
+
+  const push = (rawText: string, hrefs: string[]) => {
+    const text = clean(rawText);
+    if (text.length < 40) return;
+    const key = text.slice(0, 200);
+    if (seen.has(key)) return;
+    seen.add(key);
+    let postHref = "";
+    for (const h of hrefs) {
+      if (
+        h.includes("/feed/update/urn:li:activity:") ||
+        h.includes("/posts/")
+      ) {
+        postHref = h;
+        break;
+      }
+    }
+    cards.push({ text, href: postHref });
+  };
+
+  // Strategy 1: known container selectors.
+  const selectors = [
+    "div.feed-shared-update-v2",
+    "div.occludable-update",
+    "li.reusable-search__result-container",
+    "li[data-view-name]",
+  ];
+  for (const selector of selectors) {
+    let els: import("playwright").Locator[] = [];
+    try {
+      els = await page.locator(selector).all();
+    } catch {
+      continue;
+    }
+    for (const el of els) {
+      try {
+        const text = await el.innerText({ timeout: 800 });
+        const hrefs = (await el.evaluate((node) =>
+          Array.from(node.querySelectorAll("a[href]")).map(
+            (a) => a.getAttribute("href") || ""
+          )
+        )) as string[];
+        push(text, hrefs);
+      } catch {
+        /* skip broken card */
+      }
+    }
+  }
+
+  // Strategy 2: anchor on real post links and climb to a text-rich ancestor.
+  try {
+    const found: FoundCard[] = await page.evaluate(() => {
+      const anchors = Array.from(
+        document.querySelectorAll(
+          'a[href*="/feed/update/urn:li:activity:"], a[href*="/posts/"]'
+        )
+      );
+      const seenText = new Set<string>();
+      const out: FoundCard[] = [];
+      for (const a of anchors) {
+        let node: Element | null = a;
+        for (let i = 0; i < 8 && node && node.parentElement; i++) {
+          node = node.parentElement;
+          if (((node as HTMLElement).innerText || "").length > 120) break;
+        }
+        const text = ((node && (node as HTMLElement).innerText) || "").trim();
+        if (text.length < 40) continue;
+        const key = text.slice(0, 200);
+        if (seenText.has(key)) continue;
+        seenText.add(key);
+        out.push({ text, href: a.getAttribute("href") || "" });
+      }
+      return out;
+    });
+    for (const f of found) push(f.text, [f.href]);
+  } catch {
+    /* ignore — strategy 1 may have found enough */
+  }
+
+  return cards;
 }
 
 /**
@@ -116,7 +214,7 @@ export async function scrapeLinkedInPosts(opts: {
       : "Opening a new Chromium window + tab with your saved LinkedIn session..."
   );
 
-  let context: import("playwright").BrowserContext;
+  let context: PWContext;
   try {
     context = await chromium.launchPersistentContext(profileDir, {
       headless,
@@ -178,19 +276,25 @@ export async function scrapeLinkedInPosts(opts: {
         timeout: 60_000,
         waitUntil: "domcontentloaded",
       });
-      await page.waitForTimeout(4000);
-      if (isLinkedInLoginPage(page.url())) {
-        return {
-          posts: [],
-          needsLogin: true,
-          note:
-            "LinkedIn is still showing the login page after sign-in — the session did not stick. Start the run again.",
-        };
-      }
     }
+
+    // Wait for the results to actually render (containers or post links).
+    try {
+      await page.waitForSelector(
+        'li.reusable-search__result-container, div.occludable-update, div.feed-shared-update-v2, a[href*="/feed/update/urn:li:activity:"], a[href*="/posts/"]',
+        { timeout: 15_000 }
+      );
+    } catch {
+      log(
+        "warn",
+        "No result cards rendered within 15s — LinkedIn may have no results for this query (check for typos), or an interstitial dialog is blocking the page."
+      );
+    }
+    await page.waitForTimeout(1500);
 
     const posts: ScrapedPost[] = [];
     const seen = new Set<string>();
+    let cardsSeen = 0;
     let stagnantRounds = 0;
 
     for (let round = 0; round < scrollRounds && stagnantRounds < 3; round++) {
@@ -210,76 +314,82 @@ export async function scrapeLinkedInPosts(opts: {
         /* ignore */
       }
 
-      const selectors = [
-        "div.feed-shared-update-v2",
-        "li.reusable-search__result-container",
-        "div[data-urn]",
-      ];
+      const cards = await findPostCards(page);
+      let newCards = 0;
+      for (const card of cards) {
+        const low = card.text.toLowerCase();
+        if (
+          ["home my network jobs messaging", "skip to main content", "sort by", "content type"].some((j) =>
+            low.includes(j)
+          )
+        )
+          continue;
 
-      let newFound = 0;
-      for (const selector of selectors) {
-        const cards = await page.locator(selector).all();
-        for (const card of cards) {
-          try {
-            const text = clean(await card.innerText({ timeout: 900 }));
-            if (text.length < 40) continue;
-            const low = text.toLowerCase();
-            if (
-              ["home my network jobs messaging", "skip to main content", "sort by", "content type"].some((j) =>
-                low.includes(j)
-              )
-            )
-              continue;
-            const emails = extractEmails(text);
-            if (emails.length === 0) continue;
+        let postLink = "";
+        try {
+          postLink = card.href
+            ? normalizePostLink(new URL(card.href, "https://www.linkedin.com").toString())
+            : "";
+        } catch {
+          postLink = "";
+        }
+        if (!postLink) {
+          postLink = `https://www.linkedin.com/feed/update/urn:li:activity:0/`;
+        }
 
-            // Try to resolve a canonical post link from the card.
-            let postLink = "";
-            try {
-              const hrefs: string[] = await card.evaluate((el) =>
-                Array.from(el.querySelectorAll("a[href]"))
-                  .map((a) => (a as HTMLAnchorElement).href || a.getAttribute("href") || "")
-                  .filter(Boolean)
-              );
-              for (const href of hrefs) {
-                const fixed = normalizePostLink(new URL(href, "https://www.linkedin.com").toString());
-                if (fixed) {
-                  postLink = fixed;
-                  break;
-                }
-              }
-            } catch {
-              /* ignore */
-            }
-            if (!postLink) {
-              postLink = `https://www.linkedin.com/feed/update/urn:li:activity:0/`;
-            }
+        const key = postLink + "|" + card.text.slice(0, 200);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        cardsSeen++;
+        newCards++;
 
-            const key = postLink + "|" + text.slice(0, 200);
-            if (seen.has(key)) continue;
-            seen.add(key);
-            newFound++;
-
-            const author = text.split("\n")[0]?.trim() ?? "";
-            posts.push({
-              author,
-              headline: "",
-              text,
-              emails,
-              postLink,
-            });
-          } catch {
-            /* ignore card errors */
-          }
+        const author = card.text.split("\n")[0]?.trim() ?? "";
+        const emails = extractEmails(card.text);
+        if (emails.length > 0) {
+          posts.push({
+            author,
+            headline: "",
+            text: card.text,
+            emails,
+            postLink,
+          });
+          log(
+            "ok",
+            `Post with visible recruiter email: ${emails.join(", ")} — ${author || "unknown"}`
+          );
         }
       }
 
-      log("info", `Scroll round ${round + 1}/${scrollRounds}: ${posts.length} posts with recruiter emails visible so far`);
-      if (newFound === 0) stagnantRounds++;
+      log(
+        "info",
+        `Scroll round ${round + 1}/${scrollRounds}: ${cardsSeen} post card(s) scanned — ${posts.length} with a visible recruiter email`
+      );
+      if (newCards === 0) stagnantRounds++;
       else stagnantRounds = 0;
 
       await page.mouse.wheel(0, 1800);
       await page.waitForTimeout(900);
+    }
+
+    if (cardsSeen === 0) {
+      const title = await page.title().catch(() => "");
+      const noResults = await page
+        .getByText(/no results|couldn.?t find|didn.?t find|nothing to show/i)
+        .count()
+        .catch(() => 0);
+      log(
+        "warn",
+        `No post cards detected at all (page: "${title}", url: ${page.url()}). ` +
+          (noResults > 0
+            ? `LinkedIn shows no results for "${query}" — try a simpler query, e.g. "java developer W2".`
+            : `The results page may have loaded differently than expected — try a simpler query and check the opened browser tab manually.`)
+      );
+    } else if (posts.length === 0) {
+      log(
+        "warn",
+        `${cardsSeen} post(s) were found, but none of them contain a visible email address in the post body. ` +
+          `Recruiters often put emails in the COMMENTS instead — try a more targeted query (e.g. "java developer W2 urgent hiring").`
+      );
     }
 
     return { posts, needsLogin: false };
