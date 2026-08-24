@@ -247,6 +247,12 @@ async function ensurePostsTab(page: PWPage, log: LogFn): Promise<void> {
   }
 }
 
+/** A post card found on the results page (text + optional post href). */
+interface FoundCard {
+  text: string;
+  href: string;
+}
+
 /**
  * Discover post cards on the results page. LinkedIn renames its CSS classes
  * often, so we combine (a) known container selectors with (b) a fallback that
