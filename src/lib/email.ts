@@ -57,17 +57,22 @@ function mdLink(text: string, href: string): string {
 
 /**
  * Post text for the "FOR REFERENCE" section — the post itself, minus
- * LinkedIn UI chrome (labels, degree markers, action buttons).
+ * LinkedIn UI chrome (labels, degree markers, action buttons, reaction
+ * counts, "… more" markers).
  */
-export function postReferenceExcerpt(raw: string, max = 1200): string {
+export function postReferenceExcerpt(raw: string, max = 2000): string {
   const uiLine =
-    /^(feed post|reposted|promoted|sponsored|follow|following|connect|message|like|comment|share|repost|save|more options|copy link|copy link to post|copy post link|view profile|show more|show less|hide expanded content|view more comments|no results)$/i;
+    /^(feed post|reposted|promoted|sponsored|follow|following|connect|message|like|likes|comment|comments|share|repost|reposts|save|send|reply|replies|view replies|view comments|more options|copy link|copy link to post|copy post link|view profile|show more|show less|hide expanded content|no results)$/i;
   const lines = raw
     .split("\n")
     .map((l) => l.trim())
     .filter((l) => {
       if (!l) return true;
       if (uiLine.test(l)) return false;
+      if (/^(\.{2,}|…)\s*more$/i.test(l)) return false; // collapsed-post marker
+      if (/^\d+\s*(reactions?|comments?|reposts?|likes?|views?)\b/i.test(l))
+        return false; // "16 reactions", "1 comment"
+      if (/^\d+$/.test(l)) return false; // bare counts ("16")
       if (/^•\s*\d+(st|nd|rd|th)\+?$/.test(l)) return false;
       if (/^\d+[hdmwy]\b/.test(l)) return false;
       return true;
@@ -82,7 +87,7 @@ export function postReferenceExcerpt(raw: string, max = 1200): string {
 
 export function buildSubject(role: string): string {
   const c = config.candidate;
-  return `${displayRole(role)} | ${c.name} | ${c.experience} | ${c.availability}`;
+  return `${displayRole(role)} | ${c.name} | ${c.experience} | ${c.workAuth} | ${c.availability}`;
 }
 
 /**

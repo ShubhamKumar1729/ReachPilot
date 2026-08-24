@@ -530,6 +530,32 @@ function authorFromCardText(text: string): string {
 }
 
 /**
+ * Click every collapsed-post expander on the page. LinkedIn 2026 renders
+ * these as "… more" (ellipsis + SPACE + more), so the matcher covers the
+ * spaced, unspaced and three-dot variants.
+ */
+async function expandTruncatedPosts(page: PWPage): Promise<number> {
+  let clicks = 0;
+  try {
+    const more = page.getByText(/…\s*more|\.\.\.\s*more|see more|show more/i);
+    const count = Math.min(await more.count(), 20);
+    for (let i = 0; i < count; i++) {
+      try {
+        await more.nth(i).click({ timeout: 600 });
+        clicks++;
+      } catch {
+        /* ignore */
+      }
+      await page.waitForTimeout(150);
+    }
+  } catch {
+    /* ignore */
+  }
+  if (clicks > 0) await page.waitForTimeout(1000); // let expansions settle
+  return clicks;
+}
+
+/**
  * Resolve real permalinks for posts whose card had no link: open each
  * post's 3-dot menu and use "Copy link to post" (the link lands in the
  * clipboard). Cards are identified by their visible recruiter email, so a
@@ -556,11 +582,19 @@ async function resolvePermalinksViaMenu(
 
   let captured = 0;
   try {
-    // Only 3-dot "options/menu/actions" buttons — never Follow/Like/etc.
+    // Only 3-dot "options/menu/actions/more" buttons — never Follow/Like/etc.
     const buttons = page.locator(
-      'button[aria-label*="option" i], button[aria-label*="menu" i], button[aria-label*="action" i]'
+      'button[aria-label*="option" i], button[aria-label*="menu" i], button[aria-label*="action" i], button[aria-label*="more" i]'
     );
     const count = Math.min(await buttons.count(), 40);
+    if (count === 0) {
+      log(
+        "warn",
+        "No 3-dot menu buttons found on the page — LinkedIn may have changed their markup. The Post Link line will be omitted; send me the run log so I can adapt."
+      );
+      return;
+    }
+    log("info", `Scanning ${count} post menu buttons for "Copy link to post"...`);
 
     for (let i = 0; i < count && targets.size > 0; i++) {
       const btn = buttons.nth(i);
@@ -598,7 +632,7 @@ async function resolvePermalinksViaMenu(
       } catch {
         continue;
       }
-      await sleep(1200);
+      await sleep(1500);
 
       const clicked = await page
         .evaluate(() => {
@@ -616,7 +650,8 @@ async function resolvePermalinksViaMenu(
             if (
               t === "copy link to post" ||
               t === "copy link" ||
-              t === "copy post link"
+              t === "copy post link" ||
+              t.startsWith("copy link")
             ) {
               (item as HTMLElement).click();
               return true;
@@ -626,12 +661,16 @@ async function resolvePermalinksViaMenu(
         })
         .catch(() => false);
 
-      if (clicked) await sleep(1500);
+      if (clicked) await sleep(2000);
       const clip = clicked
         ? (await page
             .evaluate(() => navigator.clipboard.readText().catch(() => ""))
             .catch(() => ""))
         : "";
+      log(
+        "info",
+        `Menu for ${cardEmail}: "copy link" item clicked=${clicked}, clipboard=${clip ? clip.slice(0, 80) : "(empty)"}`
+      );
       await page.keyboard.press("Escape").catch(() => undefined);
       await sleep(600);
 
@@ -659,6 +698,12 @@ async function resolvePermalinksViaMenu(
     "info",
     `Post links resolved for ${resolved}/${posts.length} post(s) that carry a recruiter email.`
   );
+  if (captured === 0) {
+    log(
+      "warn",
+      "No post link could be captured via the 3-dot menu — emails will go out WITHOUT the Post Link line. Send me the run log (it shows exactly where the flow stopped)."
+    );
+  }
 }
 
 /**
@@ -801,20 +846,7 @@ export async function scrapeLinkedInPosts(opts: {
 
     for (let round = 0; round < scrollRounds && stagnantRounds < 3; round++) {
       // Expand "…more" so full post text (and emails) become visible.
-      try {
-        const more = page.getByText(/\.\.\.more|…more|see more/i);
-        const count = Math.min(await more.count(), 15);
-        for (let i = 0; i < count; i++) {
-          try {
-            await more.nth(i).click({ timeout: 600 });
-          } catch {
-            /* ignore */
-          }
-          await page.waitForTimeout(150);
-        }
-      } catch {
-        /* ignore */
-      }
+      await expandTruncatedPosts(page);
 
       const { cards, stats } = await findPostCards(page, query);
       if (cards.length > 0 && !statsLogged) {
@@ -881,6 +913,25 @@ export async function scrapeLinkedInPosts(opts: {
       else stagnantRounds = 0;
 
       await scrollFeed(page);
+    }
+
+    // Final expansion pass: re-adopt fully expanded text for posts that were
+    // captured while still truncated ("… more"), so FOR REFERENCE carries
+    // the complete JD.
+    {
+      const finalClicks = await expandTruncatedPosts(page);
+      if (finalClicks > 0) {
+        const finalCards = await findPostCards(page, query);
+        for (const post of posts) {
+          const prefix = post.text.slice(0, 120);
+          const better = finalCards.find(
+            (c) =>
+              c.text.length > post.text.length &&
+              c.text.slice(0, 120) === prefix
+          );
+          if (better) post.text = better.text;
+        }
+      }
     }
 
     // Capture real permalinks for email-bearing posts via each post's

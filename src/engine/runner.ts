@@ -98,6 +98,19 @@ async function executeRun(runId: string): Promise<void> {
     await L("info", `Search query: ${run.query}`);
     await L("info", `Target: ${run.maxEmails} email(s) | Resume AI customization: ${run.customizeResume ? "ON (Groq)" : "OFF"} | Mode: LIVE (real Chromium + LinkedIn + Gmail)`);
 
+    const cand = config.candidate;
+    if (
+      !cand.email ||
+      /your full name|placeholder/i.test(cand.name) ||
+      /0{3,}/.test(cand.phone)
+    ) {
+      await L(
+        "warn",
+        `⚠️ Your .env still has PLACEHOLDER candidate data (name="${cand.name}", phone="${cand.phone}", email="${cand.email || "(empty)"}"). ` +
+          `Update the CANDIDATE_* lines in .env and restart — otherwise every email goes out with dummy details.`
+      );
+    }
+
     if (!isSmtpConfigured()) {
       throw new Error(
         "GMAIL_ID / GMAIL_APP_PASSWORD not configured — every run is a live send. Add them to .env and restart the server."
