@@ -1,7 +1,15 @@
 import path from "node:path";
 import { config } from "../lib/config";
 import { clean, extractEmails, normalizePostLink } from "../lib/filters";
-import type { ScrapedPost } from "./simulate";
+
+/** A post scraped from the LinkedIn search results feed. */
+export interface ScrapedPost {
+  author: string;
+  headline: string;
+  text: string;
+  emails: string[];
+  postLink: string;
+}
 
 export interface ScrapeResult {
   posts: ScrapedPost[];
@@ -78,7 +86,7 @@ async function waitForManualLogin(
  *   first run the window stays open and waits for you to sign in (up to
  *   LINKEDIN_LOGIN_WAIT_SEC); that login is stored, so all future runs are
  *   directly logged in.
- * - Only loaded when ENGINE_MODE=live and the run is not a dry run.
+ * - Used by every run — there is no simulation mode.
  */
 export async function scrapeLinkedInPosts(opts: {
   query: string;

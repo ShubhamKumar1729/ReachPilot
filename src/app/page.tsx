@@ -12,7 +12,6 @@ import {
   ArrowUpRight,
   Sparkles,
   MailCheck,
-  FlaskConical,
   ShieldCheck,
   FileText,
 } from "lucide-react";
@@ -101,7 +100,7 @@ export default function Dashboard() {
       </section>
 
       {/* STATS */}
-      <section className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard
           icon={<Send size={16} />}
           label="Emails sent"
@@ -111,22 +110,14 @@ export default function Dashboard() {
           delay={0}
         />
         <StatCard
-          icon={<FlaskConical size={16} />}
-          label="Dry-run simulations"
-          value={loading ? "…" : String(t?.totalDry ?? 0)}
-          sub="full pipeline, nothing emailed"
-          accent="cyanX"
-          delay={60}
-        />
-        <StatCard
           icon={<Users size={16} />}
           label="Unique recruiters"
           value={loading ? "…" : String(t?.uniqueRecruiters ?? 0)}
           sub="deduped across every run"
           accent="violetX"
-          delay={120}
+          delay={60}
         />
-        <div className="panel fade-up p-5" style={{ animationDelay: "180ms" }}>
+        <div className="panel fade-up p-5" style={{ animationDelay: "120ms" }}>
           <div className="flex items-center justify-between">
             <span className="grid size-8 place-items-center rounded-lg border border-hairline2 bg-white/5 text-amberX">
               <Crosshair size={16} />
@@ -184,11 +175,6 @@ export default function Dashboard() {
                         <Sparkles size={9} /> ai
                       </span>
                     )}
-                    {r.dryRun && (
-                      <span className="chip !py-1 text-cyanX" title="Dry run">
-                        dry
-                      </span>
-                    )}
                     <span className={`chip !py-1 border ${runStatusColor(r.status)}`}>{r.status}</span>
                   </div>
                 </Link>
@@ -211,7 +197,7 @@ export default function Dashboard() {
             <EmptyState
               icon={<FileText size={26} />}
               title="Outbox empty"
-              body="Delivered and simulated submissions land here with post links."
+              body="Delivered submissions land here with source post links."
             />
           ) : (
             <div className="space-y-2.5">
@@ -223,12 +209,10 @@ export default function Dashboard() {
                       className={`chip !py-0.5 border ${
                         s.status === "SENT"
                           ? "text-acid border-acid/40 bg-acid/10"
-                          : s.status === "DRY_RUN"
-                            ? "text-cyanX border-cyanX/40 bg-cyanX/10"
-                            : "text-redX border-redX/40 bg-redX/10"
+                          : "text-redX border-redX/40 bg-redX/10"
                       }`}
                     >
-                      {s.status === "DRY_RUN" ? "dry" : s.status.toLowerCase()}
+                      {s.status.toLowerCase()}
                     </span>
                   </div>
                   <p className="mt-1 flex items-center gap-2 text-[11px] text-fog">
@@ -274,12 +258,11 @@ function StatCard({
   label: string;
   value: string;
   sub: string;
-  accent: "acid" | "cyanX" | "violetX";
+  accent: "acid" | "violetX";
   delay: number;
 }) {
   const colorMap = {
     acid: "text-acid",
-    cyanX: "text-cyanX",
     violetX: "text-violetX",
   } as const;
   return (

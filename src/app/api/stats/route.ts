@@ -13,11 +13,9 @@ export async function GET() {
 
     const [
       totalSent,
-      totalDry,
       totalFailed,
       uniqueEmails,
       todayCount,
-      todayDry,
       totalRuns,
       running,
       completed,
@@ -25,11 +23,9 @@ export async function GET() {
       recentSent,
     ] = await Promise.all([
       sent.countDocuments({ status: "SENT" }),
-      sent.countDocuments({ status: "DRY_RUN" }),
       sent.countDocuments({ status: "FAILED" }),
       sent.distinct("email"),
       sent.countDocuments({ status: "SENT", sentAt: { $gte: today } }),
-      sent.countDocuments({ status: "DRY_RUN", sentAt: { $gte: today } }),
       runs.countDocuments({}),
       runs.countDocuments({ status: { $in: ["running", "queued"] } }),
       runs.countDocuments({ status: "completed" }),
@@ -41,11 +37,10 @@ export async function GET() {
       ok: true,
       totals: {
         totalSent,
-        totalDry,
         totalFailed,
         uniqueRecruiters: uniqueEmails.length,
       },
-      today: { count: todayCount, dry: todayDry },
+      today: { count: todayCount },
       runStats: { totalRuns, running, completed },
       recentRuns: recentRuns.map(toRunRow),
       recentSent: recentSent.map(toSentRow),

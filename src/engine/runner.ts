@@ -23,8 +23,7 @@ import {
   renderCustomResume,
 } from "@/lib/resume";
 import { sendEmail } from "./sender";
-import { generateSimulatedFeed, type ScrapedPost } from "./simulate";
-import { scrapeLinkedInPosts } from "./scraper";
+import { scrapeLinkedInPosts, type ScrapedPost } from "./scraper";
 
 type RunHandle = { stop: boolean };
 
@@ -97,10 +96,12 @@ async function executeRun(runId: string): Promise<void> {
   try {
     await L("sys", `Run initialized — role: "${run.role}"`);
     await L("info", `Search query: ${run.query}`);
-    await L("info", `Target: ${run.maxEmails} email(s) | Resume AI customization: ${run.customizeResume ? "ON (Groq)" : "OFF"} | Mode: ${run.dryRun ? "DRY RUN (simulation, nothing will be emailed)" : run.engineMode.toUpperCase()}`);
+    await L("info", `Target: ${run.maxEmails} email(s) | Resume AI customization: ${run.customizeResume ? "ON (Groq)" : "OFF"} | Mode: LIVE (real Chromium + LinkedIn + Gmail)`);
 
-    if (!run.dryRun && !isSmtpConfigured()) {
-      throw new Error("GMAIL_ID / GMAIL_APP_PASSWORD not configured — cannot run a live send.");
+    if (!isSmtpConfigured()) {
+      throw new Error(
+        "GMAIL_ID / GMAIL_APP_PASSWORD not configured — every run is a live send. Add them to .env and restart the server."
+      );
     }
     if (run.customizeResume && !isGroqConfigured()) {
       await L("warn", "GROQ_API_KEY not configured — falling back to the base resume for every send.");
@@ -112,26 +113,20 @@ async function executeRun(runId: string): Promise<void> {
     const baseProfile = baseResumeProfile(run.role);
     await L("ok", `Base resume ready: ${config.resumeFilename}`);
 
-    // 2) Acquire the feed of posts.
-    let feed: ScrapedPost[] = [];
-    if (run.engineMode === "live" && !run.dryRun) {
-      await L("info", "Launching LinkedIn live scrape (Playwright persistent profile)...");
-      const res = await scrapeLinkedInPosts({
-        query: run.query,
-        scrollRounds: config.bot.scrollRounds,
-        log: (lvl, msg) => void log(runId, lvl, msg),
-      });
-      if (res.needsLogin) {
-        throw new Error(res.note ?? "LinkedIn login required.");
-      }
-      feed = res.posts;
-    } else {
-      feed = generateSimulatedFeed(run.role);
-      await L("info", `Simulation feed loaded: ${feed.length} posts discovered from search "${run.query}" (posts tab, location: anywhere)`);
+    // 2) Open Chromium and acquire the feed of real LinkedIn posts.
+    await L("info", "Launching LinkedIn live scrape (Playwright persistent profile)...");
+    const res = await scrapeLinkedInPosts({
+      query: run.query,
+      scrollRounds: config.bot.scrollRounds,
+      log: (lvl, msg) => void log(runId, lvl, msg),
+    });
+    if (res.needsLogin) {
+      throw new Error(res.note ?? "LinkedIn login required.");
     }
+    const feed: ScrapedPost[] = res.posts;
 
     if (feed.length === 0) {
-      await L("warn", "No posts found. Try widening the search query.");
+      await L("warn", "No posts with recruiter emails found. Try widening the search query.");
       await setRunStatus(runId, { status: "completed", finishedAt: new Date() });
       return;
     }
@@ -224,21 +219,17 @@ async function executeRun(runId: string): Promise<void> {
         const attachmentPath = customPdfPath ?? basePdf;
 
         try {
-          if (run.dryRun) {
-            await L("mail", `[DRY RUN] Would send to ${email} — "${subject}" (attachment: ${customPdfPath ? "JD-customized PDF" : "base resume PDF"}${matchedSkills ? `, pitch skills: ${matchedSkills}` : ""})`);
-          } else {
-            await sendEmail({
-              to: email,
-              subject,
-              text,
-              html,
-              attachmentPath,
-              attachmentName: config.resumeFilename,
-            });
-            await L("mail", `SENT → ${email} — "${subject}"`);
-            if (config.ccEmails.length > 0) await L("info", `CC: ${config.ccEmails.join(", ")}`);
-            if (config.bccEmails.length > 0) await L("info", `BCC: ${config.bccEmails.join(", ")}`);
-          }
+          await sendEmail({
+            to: email,
+            subject,
+            text,
+            html,
+            attachmentPath,
+            attachmentName: config.resumeFilename,
+          });
+          await L("mail", `SENT → ${email} — "${subject}"`);
+          if (config.ccEmails.length > 0) await L("info", `CC: ${config.ccEmails.join(", ")}`);
+          if (config.bccEmails.length > 0) await L("info", `BCC: ${config.bccEmails.join(", ")}`);
 
           emailedThisRun.add(email);
           const doc: SentDoc = {
@@ -251,8 +242,7 @@ async function executeRun(runId: string): Promise<void> {
             subject,
             matchedSkills,
             customized: Boolean(customPdfPath),
-            dryRun: run.dryRun,
-            status: run.dryRun ? "DRY_RUN" : "SENT",
+            status: "SENT",
             error: null,
             sentAt: new Date(),
           };
@@ -267,11 +257,9 @@ async function executeRun(runId: string): Promise<void> {
           await setRunStatus(runId, { sentCount, skippedCount: skipped });
 
           if (sentCount < run.maxEmails) {
-            const delayMs = run.dryRun
-              ? 1000 + Math.floor(Math.random() * 700)
-              : config.bot.delayBetweenEmails * 1000;
+            const delayMs = config.bot.delayBetweenEmails * 1000;
             await L("info", `Waiting ${Math.round(delayMs / 1000)}s before next email...`);
-            // Sleep in small slices so Stop reacts quickly on live runs.
+            // Sleep in small slices so Stop reacts quickly.
             for (let t = 0; t < delayMs && !handle.stop; t += 500) {
               await sleep(Math.min(500, delayMs - t));
             }
@@ -289,7 +277,6 @@ async function executeRun(runId: string): Promise<void> {
             subject,
             matchedSkills,
             customized: false,
-            dryRun: run.dryRun,
             status: "FAILED",
             error: msg,
             sentAt: new Date(),
@@ -311,14 +298,12 @@ async function executeRun(runId: string): Promise<void> {
     await L(
       "sys",
       handle.stop
-        ? `Run stopped by user — ${sentCount}/${run.maxEmails} emails processed, ${skipped} skipped.`
+        ? `Run stopped by user — ${sentCount}/${run.maxEmails} emails sent, ${skipped} skipped.`
         : sentCount >= run.maxEmails
-          ? `Target reached — ${sentCount}/${run.maxEmails} emails ${run.dryRun ? "simulated" : "sent"}. Run complete.`
-          : `Reachable recruiter quota exhausted — ${sentCount}/${run.maxEmails} emails ${run.dryRun ? "simulated" : "sent"}, ${skipped} skipped. Try a broader query for more.`
+          ? `Target reached — ${sentCount}/${run.maxEmails} emails sent. Run complete.`
+          : `Reachable recruiter quota exhausted — ${sentCount}/${run.maxEmails} emails sent, ${skipped} skipped. Try a broader query for more.`
     );
-    if (!run.dryRun) {
-      await L("sys", `Daily response target: ${config.dailyResponseTarget} replies/day — more quality posts = better odds, never guaranteed. Keep running fresh queries.`);
-    }
+    await L("sys", `Daily response target: ${config.dailyResponseTarget} replies/day — more quality posts = better odds, never guaranteed. Keep running fresh queries.`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     await setRunStatus(runId, {

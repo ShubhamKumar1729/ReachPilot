@@ -133,7 +133,7 @@ export default function SettingsPage() {
           <dl className="space-y-3">
             {s &&
                 ([
-                ["engine mode", s.engineMode === "live" ? "live (real Chromium + LinkedIn)" : "simulate (no browser)"],
+                ["run mode", "live only — real Chromium + LinkedIn + Gmail"],
                 ["linkedin login wait", `${s.linkedinLoginWaitSec}s (first run only — session is stored after)`],
                 ["default max emails / role", String(s.bot.maxEmailsPerRole)],
                 ["delay between emails", `${s.bot.delayBetweenEmails}s`],
@@ -162,7 +162,7 @@ export default function SettingsPage() {
               "Start the app: npm run start — one command, one terminal.",
               "Open the console → New Run → answer role, search query, max emails, AI tailoring.",
               "Watch the live console. Gmail sends with your resume attached; CC/BCC auto-applied when set.",
-              "For real LinkedIn scraping: set ENGINE_MODE=live, run npx playwright install chromium, and log in once in the persistent browser profile.",
+              "First run: run npx playwright install chromium once, then log in in the opened browser window — the session is stored for every future run.",
             ].map((t, i) => (
               <li key={i} className="flex gap-3">
                 <span className="grid size-5 shrink-0 place-items-center rounded-md border border-acid/40 bg-acid/10 font-mono text-[10px] font-bold text-acid">

@@ -21,10 +21,8 @@ export const config = {
   gmailAppPassword: env("GMAIL_APP_PASSWORD").replace(/\s+/g, ""),
   groqApiKey: env("GROQ_API_KEY"),
   groqModel: env("GROQ_MODEL", "openai/gpt-oss-120b") || "openai/gpt-oss-120b",
-  // Default is the real browser flow: open Chromium, search LinkedIn, extract
-  // recruiter emails from genuine posts, then email. Set ENGINE_MODE=simulate
-  // to use the built-in fake feed (no browser) instead.
-  engineMode: (env("ENGINE_MODE", "live") || "live").toLowerCase(),
+  // Every run is live: open Chromium, search LinkedIn, extract recruiter
+  // emails from genuine posts, then email. There is no simulation mode.
   linkedinProfileDir: env("LINKEDIN_PROFILE_DIR", "linkedin_saved_login"),
   // How long to wait for a manual LinkedIn sign-in on first use (seconds).
   // The session is then stored in the persistent profile — sign in once only.

@@ -5,9 +5,11 @@ search query — it opens a real Chromium browser, finds genuine hiring posts, f
 bench-sales noise, optionally tailors your resume per JD with Groq, and emails the recruiters it
 finds in the posts through your Gmail.
 
-## How a live run works
+## How a run works
 
-1. **New Chromium tab** — every live run opens a new Chromium window + tab (Playwright).
+There is only one mode — **live**. Every run opens the real browser and sends real emails.
+
+1. **New Chromium tab** — every run opens a new Chromium window + tab (Playwright).
 2. **Logged in directly** — the browser uses a persistent profile (`linkedin_saved_login/`).
    The very first run waits for you to sign in once in the opened window (up to
    `LINKEDIN_LOGIN_WAIT_SEC`, default 5 min); the login is stored, and every future run starts
@@ -32,13 +34,10 @@ cp .env.example .env              # then fill in your values
 npm run build && npm start        # or: npm run dev
 ```
 
-Open http://localhost:3000 → **New Run** → answer the 5 steps (role, search query, max emails,
-AI resume tailoring, delivery mode).
-
-- **DRY RUN** — runs the whole pipeline (filters, AI tailoring, PDF render) on a simulated feed
-  without emailing anyone. Great for testing.
-- **LIVE** — opens the real Chromium tab, scrapes LinkedIn, and sends real emails through Gmail
-  (requires `GMAIL_ID` + `GMAIL_APP_PASSWORD`).
+Open http://localhost:3000 → **New Run** → answer the steps (role, search query, max emails,
+AI resume tailoring) and launch. The run opens the Chromium tab, scrapes LinkedIn, and sends
+real emails through Gmail (requires `GMAIL_ID` + `GMAIL_APP_PASSWORD`). To test with minimal
+risk, launch a run with **1–2 max emails**.
 
 ## Environment (`.env`)
 
@@ -48,7 +47,6 @@ AI resume tailoring, delivery mode).
 | `GMAIL_APP_PASSWORD` | — | Gmail **app password** (Google Account → Security → App passwords). |
 | `GROQ_API_KEY` | — | Enables per-JD resume tailoring + skill matching. Optional. |
 | `GROQ_MODEL` | `openai/gpt-oss-120b` | Groq chat model. |
-| `ENGINE_MODE` | `live` | `live` = real Chromium + LinkedIn. `simulate` = built-in fake feed, no browser. |
 | `LINKEDIN_PROFILE_DIR` | `linkedin_saved_login` | Chromium persistent profile (stores your LinkedIn login). Gitignored. |
 | `LINKEDIN_LOGIN_WAIT_SEC` | `300` | How long the first run waits for a manual LinkedIn sign-in. |
 | `SCRAPER_HEADLESS` | — | Set `1` on machines without a display. |
@@ -79,7 +77,6 @@ src/
 ├── engine/
 │   ├── runner.ts      # Orchestrator: state machine, dedupe, delays, stop handling
 │   ├── scraper.ts     # Playwright Chromium flow: new tab, login-once, search, extract
-│   ├── simulate.ts    # Deterministic simulated feed (dry runs / simulate mode)
 │   └── sender.ts      # Gmail SMTP via nodemailer
 ├── lib/
 │   ├── config.ts      # Env parsing
@@ -92,7 +89,7 @@ src/
 
 ## Safety notes
 
-- Dry run is the default delivery mode; live sends additionally require Gmail credentials.
+- **Every run is a live send** — configure Gmail carefully and test with a small max-emails count.
 - Emails are only ever addressed to addresses found inside genuine, role-relevant posts.
 - Real sends are rate-limited (`DELAY_BETWEEN_EMAILS`) and double-send protection is
   database-enforced (unique index), not just in-memory.

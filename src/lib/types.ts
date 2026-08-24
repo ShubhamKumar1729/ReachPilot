@@ -6,8 +6,6 @@ export interface RunRow {
   query: string;
   maxEmails: number;
   customizeResume: boolean;
-  dryRun: boolean;
-  engineMode: string;
   status: string;
   sentCount: number;
   skippedCount: number;
@@ -27,7 +25,6 @@ export interface SentRow {
   subject: string;
   matchedSkills: string;
   customized: boolean;
-  dryRun: boolean;
   status: string;
   error: string | null;
   sentAt: string;
@@ -45,11 +42,10 @@ export interface StatsPayload {
   ok: boolean;
   totals: {
     totalSent: number;
-    totalDry: number;
     totalFailed: number;
     uniqueRecruiters: number;
   };
-  today: { count: number; dry: number };
+  today: { count: number };
   runStats: { totalRuns: number; running: number; completed: number };
   recentRuns: RunRow[];
   recentSent: SentRow[];
@@ -81,7 +77,6 @@ export interface SettingsPayload {
     waitBetweenRolesMin: number;
     waitBetweenRolesMax: number;
   };
-  engineMode: string;
   linkedinLoginWaitSec: number;
   dailyTarget: number;
   resume: { exists: boolean; filename: string; path: string; size: number };

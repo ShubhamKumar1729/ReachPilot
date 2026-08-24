@@ -9,8 +9,6 @@ export interface RunDoc {
   query: string;
   maxEmails: number;
   customizeResume: boolean;
-  dryRun: boolean;
-  engineMode: string;
   status: string; // queued | running | completed | stopped | failed
   sentCount: number;
   skippedCount: number;
@@ -30,8 +28,7 @@ export interface SentDoc {
   subject: string;
   matchedSkills: string;
   customized: boolean;
-  dryRun: boolean;
-  status: string; // SENT | DRY_RUN | FAILED
+  status: string; // SENT | FAILED
   error: string | null;
   sentAt: Date;
 }
@@ -176,8 +173,6 @@ export function toRunRow(d: RunDoc): RunRow {
     query: d.query,
     maxEmails: d.maxEmails,
     customizeResume: d.customizeResume,
-    dryRun: d.dryRun,
-    engineMode: d.engineMode,
     status: d.status,
     sentCount: d.sentCount,
     skippedCount: d.skippedCount,
@@ -199,7 +194,6 @@ export function toSentRow(d: SentDoc): SentRow {
     subject: d.subject,
     matchedSkills: d.matchedSkills,
     customized: d.customized,
-    dryRun: d.dryRun,
     status: d.status,
     error: d.error,
     sentAt: d.sentAt.toISOString(),

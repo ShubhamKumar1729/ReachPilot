@@ -54,7 +54,6 @@ export async function GET() {
     ccEmails: config.ccEmails.map(maskEmail),
     bccEmails: config.bccEmails.map(maskEmail),
     bot: config.bot,
-    engineMode: config.engineMode,
     linkedinLoginWaitSec: config.linkedinLoginWaitSec,
     dailyTarget: config.dailyResponseTarget,
     resume: {

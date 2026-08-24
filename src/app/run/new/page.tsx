@@ -7,8 +7,6 @@ import {
   ChevronRight,
   Rocket,
   Sparkles,
-  FlaskConical,
-  Satellite,
   Lightbulb,
   MailWarning,
   CheckCheck,
@@ -38,7 +36,6 @@ export default function NewRunPage() {
   const [maxEmails, setMaxEmails] = useState<number>(15);
   const [custom, setCustom] = useState("");
   const [customize, setCustomize] = useState<boolean | null>(null);
-  const [dryRun, setDryRun] = useState(true);
   const [launching, setLaunching] = useState(false);
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -86,13 +83,12 @@ export default function NewRunPage() {
       const r = await fetch("/api/runs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          role: role.trim(),
-          query: query.trim(),
-          maxEmails,
-          customizeResume: Boolean(customize),
-          dryRun,
-        }),
+          body: JSON.stringify({
+            role: role.trim(),
+            query: query.trim(),
+            maxEmails,
+            customizeResume: Boolean(customize),
+          }),
       });
       const d = await r.json();
       if (!d.ok) throw new Error(d.error || "failed to start run");
@@ -127,8 +123,8 @@ export default function NewRunPage() {
           </h1>
         </div>
         <span className="chip hidden sm:inline-flex">
-          <Satellite size={10} />
-          engine: {settings?.engineMode ?? "…"}
+          <Rocket size={10} />
+          live mode only
         </span>
       </div>
 
@@ -270,36 +266,45 @@ export default function NewRunPage() {
               </WizardField>
             )}
 
-            {/* STEP 4 — DRY RUN + LAUNCH */}
+            {/* STEP 4 — CONFIRM & LAUNCH (live only — no simulation mode) */}
             {step === 4 && (
               <div className="log-line space-y-5">
                 <WizardField
-                  label="delivery mode"
-                  hint="dry run exercises the entire pipeline without emailing anyone — perfect for testing"
+                  label="confirm & launch"
+                  hint="every run is live: real Chromium tab, real LinkedIn, real Gmail sends"
                 >
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <ChoiceCard
-                      active={dryRun}
-                      onClick={() => setDryRun(true)}
-                      icon={<FlaskConical size={17} />}
-                      title="DRY RUN — simulate"
-                      body="Scrapes a simulated feed, runs every filter, Groq tailoring & PDF render. Logs every would-send. Zero real emails."
-                    />
-                    <ChoiceCard
-                      active={!dryRun}
-                      onClick={() => setDryRun(false)}
-                      icon={<Rocket size={17} />}
-                      title="LIVE — send emails"
-                      body={
-                        settings?.engineMode === "live"
-                          ? "Opens a NEW Chromium tab with your saved LinkedIn session — first run signs in once (the window waits for you) and remembers it forever. It searches your query, filters genuine posts for your role, and emails the recruiter addresses it finds in the posts via Gmail."
-                          : "ENGINE_MODE=simulate → sends REAL emails for simulated posts (no browser). Set ENGINE_MODE=live to open the real LinkedIn browser flow."
-                      }
-                      disabled={!smtpOn}
-                      warn={!smtpOn ? "Gmail SMTP not configured" : undefined}
-                    />
+                  <div className="rounded-xl border border-hairline2 bg-black/25 p-4 text-[13px] leading-relaxed text-fog">
+                    <p>When you hit launch, the engine will:</p>
+                    <ol className="mt-2 list-decimal space-y-1.5 pl-5">
+                      <li>
+                        Open a <span className="text-mist">new Chromium tab</span> with your saved
+                        LinkedIn session — if none is saved yet, the window waits for your one-time
+                        sign-in and then remembers it forever.
+                      </li>
+                      <li>
+                        Search <span className="text-mist">“{query.trim() || "your query"}”</span> in
+                        LinkedIn posts and scroll through the results.
+                      </li>
+                      <li>
+                        Keep only genuine posts that match{" "}
+                        <span className="text-mist">{role.trim() || "your role"}</span> — bench-sales
+                        and hotlist posts are auto-blocked.
+                      </li>
+                      <li>
+                        Email the recruiter address(es) found <b>inside the post</b> via Gmail, one
+                        every {settings?.bot?.delayBetweenEmails ?? 12}s, stopping at {maxEmails}{" "}
+                        email{maxEmails > 1 ? "s" : ""}.
+                      </li>
+                    </ol>
                   </div>
                 </WizardField>
+
+                {!smtpOn && (
+                  <p className="flex items-center gap-2 rounded-xl border border-amberX/40 bg-amberX/10 px-4 py-3 font-mono text-[12px] text-amberX">
+                    <MailWarning size={14} /> Gmail SMTP not configured — set GMAIL_ID +
+                    GMAIL_APP_PASSWORD in .env and restart the server, or the run will fail immediately.
+                  </p>
+                )}
 
                 {error && (
                   <p className="flex items-center gap-2 rounded-xl border border-redX/40 bg-redX/10 px-4 py-3 font-mono text-[12px] text-redX">
@@ -316,7 +321,7 @@ export default function NewRunPage() {
                     ) : (
                       <>
                         <Rocket size={17} strokeWidth={2.4} />
-                        Launch run — {maxEmails} {dryRun ? "simulated" : "real"} email{maxEmails > 1 ? "s" : ""}
+                        Launch live run — {maxEmails} real email{maxEmails > 1 ? "s" : ""}
                         {customize ? " · AI-tailored" : ""}
                       </>
                     )}

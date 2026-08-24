@@ -13,7 +13,7 @@ import {
 import type { SentRow } from "@/lib/types";
 import { fmtDate } from "@/lib/types";
 
-const FILTERS = ["all", "SENT", "DRY_RUN", "FAILED"] as const;
+const FILTERS = ["all", "SENT", "FAILED"] as const;
 
 export default function HistoryPage() {
   const [rows, setRows] = useState<SentRow[]>([]);
@@ -76,7 +76,7 @@ export default function HistoryPage() {
       <div className="fade-up mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="label-mono mb-2 flex items-center gap-2">
-            <HistoryIcon size={12} className="text-acid" /> delivered &amp; simulated submissions
+            <HistoryIcon size={12} className="text-acid" /> delivered submissions
           </p>
           <h1 className="text-3xl font-bold tracking-tight text-paper sm:text-4xl">Outbox</h1>
         </div>
@@ -107,10 +107,10 @@ export default function HistoryPage() {
               key={f}
               onClick={() => setFilter(f)}
               className={`btn !rounded-lg !px-3.5 !py-2 font-mono text-[11px] uppercase tracking-wider ${
-                filter === f ? "btn-acid" : "btn-ghost"
-              }`}
+                    filter === f ? "btn-acid" : "btn-ghost"
+                  }`}
             >
-              {f === "DRY_RUN" ? "dry" : f.toLowerCase()}
+              {f.toLowerCase()}
             </button>
           ))}
         </div>
@@ -158,17 +158,15 @@ export default function HistoryPage() {
                       <p className="max-w-52 truncate font-mono text-[10.5px] text-fog">{r.role}</p>
                     </td>
                     <td className="px-5 py-3.5">
-                      <span
-                        className={`chip !py-0.5 border ${
-                          r.status === "SENT"
-                            ? "text-acid border-acid/40 bg-acid/10"
-                            : r.status === "DRY_RUN"
-                              ? "text-cyanX border-cyanX/40 bg-cyanX/10"
+                        <span
+                          className={`chip !py-0.5 border ${
+                            r.status === "SENT"
+                              ? "text-acid border-acid/40 bg-acid/10"
                               : "text-redX border-redX/40 bg-redX/10"
-                        }`}
-                      >
-                        {r.status === "DRY_RUN" ? "dry" : r.status.toLowerCase()}
-                      </span>
+                          }`}
+                        >
+                          {r.status.toLowerCase()}
+                        </span>
                     </td>
                     <td className="px-5 py-3.5">
                       {r.customized ? (

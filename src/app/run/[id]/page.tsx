@@ -112,10 +112,9 @@ export default function RunConsolePage() {
             {run && (
               <span className={`chip border ${runStatusColor(run.status)}`}>
                 {running && <span className="pulse-dot" />}
-                {run.status}
-              </span>
+              {run.status}
+            </span>
             )}
-            {run?.dryRun && <span className="chip border border-cyanX/40 bg-cyanX/10 text-cyanX">dry run</span>}
             {run?.customizeResume && (
               <span className="chip border border-violetX/40 bg-violetX/10 text-violetX">
                 <Sparkles size={10} /> ai tailor
@@ -215,12 +214,10 @@ export default function RunConsolePage() {
                       className={`chip shrink-0 !py-0.5 border ${
                         s.status === "SENT"
                           ? "text-acid border-acid/40 bg-acid/10"
-                          : s.status === "DRY_RUN"
-                            ? "text-cyanX border-cyanX/40 bg-cyanX/10"
-                            : "text-redX border-redX/40 bg-redX/10"
+                          : "text-redX border-redX/40 bg-redX/10"
                       }`}
                     >
-                      {s.status === "DRY_RUN" ? "dry" : s.status.toLowerCase()}
+                      {s.status.toLowerCase()}
                     </span>
                   </div>
                   <p className="mt-1 text-[11px] text-fog">

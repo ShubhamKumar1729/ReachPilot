@@ -26,7 +26,6 @@ export async function POST(req: Request) {
       query?: string;
       maxEmails?: number;
       customizeResume?: boolean;
-      dryRun?: boolean;
     };
 
     const role = (body.role ?? "").trim().slice(0, 120);
@@ -36,9 +35,6 @@ export async function POST(req: Request) {
       Math.max(1, Math.floor(Number(body.maxEmails) || config.bot.maxEmailsPerRole))
     );
     const customizeResume = Boolean(body.customizeResume);
-    const dryRun = body.dryRun !== false; // default to dry-run for safety
-    const engineMode =
-      !dryRun && config.engineMode === "live" ? "live" : "simulate";
 
     if (!role || !query) {
       return Response.json(
@@ -54,8 +50,6 @@ export async function POST(req: Request) {
       query,
       maxEmails,
       customizeResume,
-      dryRun,
-      engineMode,
       status: "queued",
       sentCount: 0,
       skippedCount: 0,
@@ -69,7 +63,7 @@ export async function POST(req: Request) {
     await col.insertOne(doc);
 
     startRun(id);
-    return Response.json({ ok: true, id, engineMode });
+    return Response.json({ ok: true, id });
   } catch (err) {
     return Response.json(
       { ok: false, error: err instanceof Error ? err.message : "Failed" },
