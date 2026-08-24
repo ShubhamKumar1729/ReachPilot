@@ -147,12 +147,25 @@ export async function nextLogSeq(): Promise<number> {
       { $inc: { value: 1 } },
       { upsert: true, returnDocument: "after" }
     )) as unknown;
-  // mongodb v6 returns the doc; v5 returns { value: doc }. Handle both.
-  const doc =
-    res && typeof res === "object" && "value" in (res as Record<string, unknown>)
-      ? ((res as { value: { value: number } }).value ?? null)
-      : (res as { value: number } | null);
-  return doc?.value ?? 1;
+  // Driver >= 6 returns the doc itself ({ _id, value });
+  // older drivers wrapped it as { value: doc }. Unwrap only the wrapper shape.
+  let doc: unknown = res;
+  if (
+    doc &&
+    typeof doc === "object" &&
+    "value" in (doc as Record<string, unknown>) &&
+    !("_id" in (doc as Record<string, unknown>))
+  ) {
+    doc = (doc as { value: unknown }).value;
+  }
+  if (
+    doc &&
+    typeof doc === "object" &&
+    typeof (doc as { value?: unknown }).value === "number"
+  ) {
+    return (doc as { value: number }).value;
+  }
+  return 1;
 }
 
 export function isDuplicateKeyError(err: unknown): boolean {

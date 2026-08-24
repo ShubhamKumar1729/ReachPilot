@@ -175,10 +175,10 @@ export default function RunConsolePage() {
             {!data || data.logs.length === 0 ? (
               <p className="text-fog">$ awaiting engine output<span className="caret" /></p>
             ) : (
-              data.logs.map((l) => {
+              data.logs.map((l, i) => {
                 const st = LEVEL_STYLE[l.level] ?? LEVEL_STYLE.info;
                 return (
-                  <p key={l.id} className="log-line flex gap-2.5 break-words">
+                  <p key={`${l.id}:${i}`} className="log-line flex gap-2.5 break-words">
                     <span className="shrink-0 select-none text-fog/50">
                       {new Date(l.createdAt).toLocaleTimeString(undefined, { hour12: false })}
                     </span>
