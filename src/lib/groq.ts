@@ -108,7 +108,7 @@ function sanitizeCustomResume(input: unknown): CustomResume | null {
             title: typeof jo.title === "string" ? jo.title : "",
             company: typeof jo.company === "string" ? jo.company : "",
             dates: typeof jo.dates === "string" ? jo.dates : "",
-            bullets: asStrArr(jo.bullets, 6),
+            bullets: asStrArr(jo.bullets, 8),
           };
         })
         .filter((j) => j.title && j.bullets.length > 0)
@@ -144,7 +144,7 @@ export async function customizeResumeForPost(
       {
         role: "system",
         content:
-          "You are an expert ATS resume tailor. Given a candidate's base resume and a recruiter's job post, rewrite the resume so it aligns with the post while staying 100% truthful to the base resume: never invent employers, degrees, certifications, or years of experience. You may reorder bullets, sharpen wording, mirror the post's terminology, and emphasize the most relevant skills. Reply with STRICT JSON only, matching this TypeScript type: { title: string; summary: string[]; skills: Record<string,string>; jobs: { title: string; company: string; dates: string; bullets: string[] }[]; education: string[] }. Keep 3-5 summary lines, 4-8 skill groups, keep ALL jobs from the base resume with 4-7 bullets each. Bullets must be punchy, start with strong verbs, and include keywords from the post where honest.",
+          "You are an expert ATS resume tailor. Given a candidate's base resume and a recruiter's job post, rewrite the resume so it aligns with the post while staying 100% truthful to the base resume: never invent employers, degrees, certifications, or years of experience. You may reorder bullets, sharpen wording, mirror the post's terminology, and emphasize the most relevant skills. Reply with STRICT JSON only, matching this TypeScript type: { title: string; summary: string[]; skills: Record<string,string>; jobs: { title: string; company: string; dates: string; bullets: string[] }[]; education: string[] }. Keep 4-5 summary lines, 6-9 skill groups, keep ALL jobs from the base resume with 6-8 detailed bullets each — the finished resume must fill a full page with detail. Bullets must be punchy, start with strong verbs, and include keywords from the post where honest.",
       },
       {
         role: "user",

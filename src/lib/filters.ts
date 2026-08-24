@@ -188,6 +188,9 @@ export function shouldSendToPost(
 export function normalizePostLink(rawLink: string | null | undefined): string {
   let link = clean(String(rawLink ?? ""));
   if (!link) return "";
+  // Strip any markdown wrapper that leaked in ([url](url) → url).
+  link = link.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").trim();
+  if (!link) return "";
   link = link.replace(/&amp;/g, "&");
   link = link.replace(/%3A/gi, ":").replace(/%2F/gi, "/");
 

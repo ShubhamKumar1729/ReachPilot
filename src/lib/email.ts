@@ -128,10 +128,12 @@ export function buildEmail(opts: {
   ];
 
   const reference = postReferenceExcerpt(postText);
+  // Defense in depth: never wrap an already-wrapped link in markdown.
+  const postLinkClean = postLink.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").trim();
 
   let tail = "";
   if (reference) tail += `\n\n\nFOR REFERENCE\n\n${reference}`;
-  if (postLink) tail += `\n\nPost Link: ${mdLink(postLink, postLink)}`;
+  if (postLinkClean) tail += `\n\nPost Link: ${mdLink(postLinkClean, postLinkClean)}`;
 
   const text = `Dear Hiring Manager,
 

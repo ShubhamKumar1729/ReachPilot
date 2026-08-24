@@ -33,6 +33,7 @@ export function baseResumeProfile(role: string): CustomResume {
       `${roleTitle} with ${config.candidate.experience} of hands-on experience delivering reliable, scalable solutions across cloud and enterprise environments.`,
       "Skilled at translating business requirements into production-grade technical execution with automation-first workflows.",
       "Strong background collaborating with cross-functional teams in fast-paced Agile environments with a focus on quality, security, and uptime.",
+      "Recognized for clear stakeholder communication, fast learning, and dependable execution under tight deadlines.",
       `${config.candidate.workAuth} | ${config.candidate.availability} availability | ${config.candidate.relocation}.`,
     ],
     skills: {
@@ -42,6 +43,8 @@ export function baseResumeProfile(role: string): CustomResume {
       "Containers & Orchestration": "Docker, Kubernetes (EKS/AKS), Helm",
       Observability: "Prometheus, Grafana, ELK, CloudWatch, Datadog",
       Databases: "PostgreSQL, MySQL, Redis",
+      "Scripting & Tooling": "Python, Bash, PowerShell, SQL, REST API integrations",
+      "Security & Compliance": "Vulnerability scanning, secret management, access reviews, audit readiness",
       Practices: "Agile/Scrum, Incident Management, Code Review, Documentation",
     },
     jobs: [
@@ -49,24 +52,30 @@ export function baseResumeProfile(role: string): CustomResume {
         title: roleTitle,
         company: "Enterprise Client Engagement",
         dates: "2022 - Present",
-        bullets: [
-          `Own end-to-end delivery of ${roleTitle} initiatives across production cloud environments serving enterprise stakeholders.`,
-          "Automated repetitive operational workflows, cutting manual effort significantly and improving release reliability.",
-          "Built and maintained CI/CD pipelines enabling frequent, low-risk deployments with automated quality gates.",
-          "Implemented monitoring, alerting, and incident-response practices that reduced mean time to resolution.",
-          "Partnered with engineering, security, and product teams to ship compliant, well-documented solutions.",
-        ],
+          bullets: [
+            `Own end-to-end delivery of ${roleTitle} initiatives across production cloud environments serving enterprise stakeholders.`,
+            "Automated repetitive operational workflows, cutting manual effort significantly and improving release reliability.",
+            "Built and maintained CI/CD pipelines enabling frequent, low-risk deployments with automated quality gates.",
+            "Implemented monitoring, alerting, and incident-response practices that reduced mean time to resolution.",
+            "Partnered with engineering, security, and product teams to ship compliant, well-documented solutions.",
+            "Spearheaded capacity planning and cloud cost-optimization reviews, reducing infrastructure spend without impacting SLAs.",
+            "Maintained 99.9%+ availability across critical production services through disciplined change management and rollback planning.",
+            "Championed developer-experience improvements — shared libraries, scaffolding and documentation — that lifted team velocity.",
+          ],
       },
       {
         title: roleTitle,
         company: "Consulting Engagement",
         dates: "2020 - 2022",
-        bullets: [
-          "Delivered client-facing technical solutions across multiple concurrent projects with strict SLAs.",
-          "Standardized environment provisioning with Infrastructure-as-Code and configuration management.",
-          "Improved system observability with centralized logging and metrics dashboards.",
-          "Mentored junior engineers and produced runbooks adopted across the team.",
-        ],
+          bullets: [
+            "Delivered client-facing technical solutions across multiple concurrent projects with strict SLAs.",
+            "Standardized environment provisioning with Infrastructure-as-Code and configuration management.",
+            "Improved system observability with centralized logging and metrics dashboards.",
+            "Mentored junior engineers and produced runbooks adopted across the team.",
+            "Automated compliance evidence collection and audit reporting, shrinking audit preparation time dramatically.",
+            "Owned tooling evaluations and rollout of standards that aligned multiple delivery teams on a common stack.",
+            "Coordinated with clients to translate business requirements into scoped, testable delivery milestones.",
+          ],
       },
       {
         title: `Associate ${roleTitle}`,
@@ -76,10 +85,16 @@ export function baseResumeProfile(role: string): CustomResume {
           "Supported production systems and participated in on-call rotations.",
           "Contributed to automation scripts and deployment tooling.",
           "Collaborated in Agile ceremonies and maintained technical documentation.",
+          "Participated in production incident triage and post-incident reviews that improved system reliability.",
+          "Documented troubleshooting playbooks and onboarding guides still used by the team today.",
+          "Monitored dashboards and alerts, escalating and resolving issues before they impacted end users.",
         ],
       },
     ],
-    education: ["Bachelor's Degree"],
+    education: [
+      "Bachelor's Degree",
+      "Professional certifications in cloud, DevOps and Agile delivery practices",
+    ],
   };
 }
 
@@ -108,18 +123,18 @@ function renderResumePdf(profile: CustomResume, outPath: string): Promise<string
     // Header
     doc
       .font("Helvetica-Bold")
-      .fontSize(19)
+      .fontSize(21)
       .fillColor(C.slate)
       .text(c.name.toUpperCase(), { align: "center", characterSpacing: 0.6 });
     doc
       .font("Helvetica-Bold")
-      .fontSize(10.5)
+      .fontSize(11.5)
       .fillColor(C.blue)
       .text(profile.title, { align: "center" });
-    doc.moveDown(0.25);
+    doc.moveDown(0.35);
     doc
       .font("Helvetica")
-      .fontSize(7.6)
+      .fontSize(8.5)
       .fillColor(C.ink)
       .text(
         `${c.phone}  |  ${c.email}  |  ${c.linkedin}`,
@@ -129,20 +144,20 @@ function renderResumePdf(profile: CustomResume, outPath: string): Promise<string
       `${c.location}  |  ${c.workAuth}  |  ${c.availability}  |  ${c.relocation}`,
       { align: "center" }
     );
-    doc.moveDown(0.3);
+    doc.moveDown(0.4);
     doc
       .moveTo(40, doc.y)
       .lineTo(40 + pageW, doc.y)
       .lineWidth(1)
       .strokeColor(C.blue)
       .stroke();
-    doc.moveDown(0.35);
+    doc.moveDown(0.45);
 
     const section = (label: string) => {
-      doc.moveDown(0.45);
+      doc.moveDown(0.8);
       doc
         .font("Helvetica-Bold")
-        .fontSize(9.6)
+        .fontSize(10.5)
         .fillColor(C.blue)
         .text(label, { characterSpacing: 0.8 });
       doc
@@ -151,16 +166,16 @@ function renderResumePdf(profile: CustomResume, outPath: string): Promise<string
         .lineWidth(0.6)
         .strokeColor(C.line)
         .stroke();
-      doc.moveDown(0.15);
+      doc.moveDown(0.25);
     };
 
     const bullet = (t: string) => {
       doc
         .font("Helvetica")
-        .fontSize(7.9)
+        .fontSize(9)
         .fillColor(C.ink)
-        .text(`•  ${t}`, { indent: 8, lineGap: 0.6 });
-      doc.moveDown(0.08);
+        .text(`•  ${t}`, { indent: 8, lineGap: 1 });
+      doc.moveDown(0.18);
     };
 
     // Summary
@@ -172,13 +187,13 @@ function renderResumePdf(profile: CustomResume, outPath: string): Promise<string
     for (const [group, line] of Object.entries(profile.skills)) {
       doc
         .font("Helvetica-Bold")
-        .fontSize(7.9)
+        .fontSize(9)
         .fillColor(C.slate)
         .text(`${group}: `, { continued: true })
         .font("Helvetica")
         .fillColor(C.ink)
-        .text(line, { lineGap: 0.5 });
-      doc.moveDown(0.08);
+        .text(line, { lineGap: 0.9 });
+      doc.moveDown(0.22);
     }
 
     // Experience
@@ -186,20 +201,20 @@ function renderResumePdf(profile: CustomResume, outPath: string): Promise<string
     for (const job of profile.jobs) {
       doc
         .font("Helvetica-Bold")
-        .fontSize(8.6)
+        .fontSize(9.8)
         .fillColor(C.slate)
         .text(`${job.title}  |  ${job.company}  |  ${job.dates}`);
-      doc.moveDown(0.08);
+      doc.moveDown(0.18);
       for (const b of job.bullets) bullet(b);
-      doc.moveDown(0.1);
+      doc.moveDown(0.2);
     }
 
     // Education
     if (profile.education.length > 0) {
       section("EDUCATION");
       for (const e of profile.education) {
-        doc.font("Helvetica").fontSize(8).fillColor(C.ink).text(e);
-        doc.moveDown(0.05);
+        doc.font("Helvetica").fontSize(9).fillColor(C.ink).text(e);
+        doc.moveDown(0.14);
       }
     }
 
