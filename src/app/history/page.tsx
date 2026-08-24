@@ -43,6 +43,25 @@ export default function HistoryPage() {
     load();
   };
 
+  const [deletingAll, setDeletingAll] = useState(false);
+  const delAll = async () => {
+    if (deletingAll) return;
+    if (!rows.length) return;
+    if (
+      !confirm(
+        `Delete ALL ${rows.length} outbox record(s)? This cannot be undone.`
+      )
+    )
+      return;
+    setDeletingAll(true);
+    try {
+      await fetch("/api/sent", { method: "DELETE" });
+      load();
+    } finally {
+      setDeletingAll(false);
+    }
+  };
+
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return rows.filter((r) => {
@@ -92,6 +111,13 @@ export default function HistoryPage() {
           </button>
           <button onClick={exportCsv} disabled={filtered.length === 0} className="btn btn-acid !px-4 !py-2.5 text-[13px]">
             <Download size={14} /> Export CSV
+          </button>
+          <button
+            onClick={delAll}
+            disabled={rows.length === 0 || deletingAll}
+            className="btn btn-ghost !px-4 !py-2.5 text-[13px] !text-redX"
+          >
+            <Trash2 size={14} /> {deletingAll ? "Deleting…" : "Delete all"}
           </button>
         </div>
       </div>

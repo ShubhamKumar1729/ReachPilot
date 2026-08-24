@@ -15,3 +15,16 @@ export async function GET() {
     );
   }
 }
+
+export async function DELETE() {
+  try {
+    const col = await sentCol();
+    const res = await col.deleteMany({});
+    return Response.json({ ok: true, deleted: res.deletedCount });
+  } catch (err) {
+    return Response.json(
+      { ok: false, error: err instanceof Error ? err.message : "Failed" },
+      { status: 500 }
+    );
+  }
+}
