@@ -253,15 +253,33 @@ interface FoundCard {
   href: string;
 }
 
+/** How many cards each discovery strategy contributed. */
+interface CardStats {
+  byContainer: number;
+  byAnchor: number;
+  byUrn: number;
+  byHeuristic: number;
+}
+
 /**
  * Discover post cards on the results page. LinkedIn renames its CSS classes
- * often, so we combine (a) known container selectors with (b) a fallback that
- * anchors on real post links (/feed/update/urn:li:activity:… and /posts/…)
- * and climbs to the nearest text-rich container.
+ * often, so four strategies are combined and deduplicated:
+ *   1. known container selectors (class-name based),
+ *   2. real post links (/feed/update/urn:li:activity:… and /posts/…) —
+ *      climb to the nearest text-rich container,
+ *   3. LinkedIn data attributes (data-urn / data-occludable-update-urn /
+ *      data-chameleon-result-urn) — the permalink is BUILT from the
+ *      urn:li:activity:<id> value, no class names or anchors needed,
+ *   4. content heuristic — text-rich elements that read like a recruiting
+ *      post (role keywords, your query words, or an email address).
  */
-async function findPostCards(page: PWPage): Promise<FoundCard[]> {
+async function findPostCards(
+  page: PWPage,
+  query: string
+): Promise<{ cards: FoundCard[]; stats: CardStats }> {
   const cards: FoundCard[] = [];
   const seen = new Set<string>();
+  const stats: CardStats = { byContainer: 0, byAnchor: 0, byUrn: 0, byHeuristic: 0 };
 
   const push = (rawText: string, hrefs: string[]) => {
     const text = clean(rawText);
@@ -311,37 +329,174 @@ async function findPostCards(page: PWPage): Promise<FoundCard[]> {
     }
   }
 
-  // Strategy 2: anchor on real post links and climb to a text-rich ancestor.
+  stats.byContainer = cards.length;
+
+  // Strategies 2-4 in a single page pass.
   try {
-    const found: FoundCard[] = await page.evaluate(() => {
+    const queryWords = (query || "")
+      .toLowerCase()
+      .split(/[^a-z0-9+#.]+/)
+      .filter((w) => w.length >= 3);
+
+    const found: {
+      text: string;
+      href: string;
+      via: "anchor" | "urn" | "heuristic";
+    }[] = await page.evaluate((words: string[]) => {
+      const emailRe = /[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}/;
+      const kwRe =
+        /\b(hiring|recruit|recruiter|developer|engineer|analyst|consultant|contract|c2c|job|job opening|opportunity|position|walk[\s-]?in|interview|immediate joiner|urgent)\b/i;
+
+      const out: {
+        text: string;
+        href: string;
+        via: "anchor" | "urn" | "heuristic";
+      }[] = [];
+      const seenText = new Set<string>();
+
+      // Find a post link inside an element: first a real anchor, otherwise
+      // build one from a data-urn value (urn:li:activity:<id>).
+      const hrefFrom = (el: HTMLElement): string => {
+        for (const a of Array.from(el.querySelectorAll("a[href]"))) {
+          const h = a.getAttribute("href") || "";
+          if (
+            h.includes("/posts/") ||
+            h.includes("/feed/update/urn:li:activity:")
+          )
+            return h;
+        }
+        for (const u of Array.from(
+          el.querySelectorAll("[data-urn], [data-occludable-update-urn]")
+        )) {
+          const v =
+            u.getAttribute("data-urn") ||
+            u.getAttribute("data-occludable-update-urn") ||
+            "";
+          const m = v.match(/urn:li:(?:activity|ugcPost):(\d+)/i);
+          if (m)
+            return `https://www.linkedin.com/feed/update/urn:li:activity:${m[1]}/`;
+        }
+        return "";
+      };
+
+      const add = (
+        text: string,
+        href: string,
+        via: "anchor" | "urn" | "heuristic"
+      ) => {
+        const t = text.trim();
+        if (t.length < 40) return;
+        const key = t.slice(0, 200);
+        if (seenText.has(key)) return;
+        seenText.add(key);
+        out.push({ text: t, href, via });
+      };
+
+      // Strategy 2: real post links → climb to a text-rich ancestor.
       const anchors = Array.from(
         document.querySelectorAll(
           'a[href*="/feed/update/urn:li:activity:"], a[href*="/posts/"]'
         )
       );
-      const seenText = new Set<string>();
-      const out: FoundCard[] = [];
       for (const a of anchors) {
         let node: Element | null = a;
         for (let i = 0; i < 8 && node && node.parentElement; i++) {
           node = node.parentElement;
           if (((node as HTMLElement).innerText || "").length > 120) break;
         }
-        const text = ((node && (node as HTMLElement).innerText) || "").trim();
-        if (text.length < 40) continue;
-        const key = text.slice(0, 200);
-        if (seenText.has(key)) continue;
-        seenText.add(key);
-        out.push({ text, href: a.getAttribute("href") || "" });
+        add(
+          node ? (node as HTMLElement).innerText || "" : "",
+          a.getAttribute("href") || "",
+          "anchor"
+        );
       }
+
+      // Strategy 3: LinkedIn data attributes — the permalink is built
+      // straight from the URN, so no anchor or class name is required.
+      const ownUrnHref = (el: Element): string => {
+        const v =
+          el.getAttribute("data-urn") ||
+          el.getAttribute("data-occludable-update-urn") ||
+          el.getAttribute("data-chameleon-result-urn") ||
+          "";
+        const m = v.match(/urn:li:(?:activity|ugcPost):(\d+)/i);
+        return m
+          ? `https://www.linkedin.com/feed/update/urn:li:activity:${m[1]}/`
+          : "";
+      };
+      const climbToCard = (start: Element): HTMLElement | null => {
+        let node: Element | null = start;
+        for (let i = 0; i < 12 && node; i++) {
+          const text = ((node as HTMLElement).innerText || "").trim();
+          if (text.length >= 80 && text.length <= 8000)
+            return node as HTMLElement;
+          node = node.parentElement;
+        }
+        return null;
+      };
+      const urnSelectors = [
+        '[data-urn*="activity"]',
+        '[data-urn*="ugcPost"]',
+        "[data-occludable-update-urn]",
+        "[data-chameleon-result-urn]",
+      ];
+      for (const sel of urnSelectors) {
+        for (const el of Array.from(document.querySelectorAll(sel))) {
+          const card = climbToCard(el);
+          if (!card) continue;
+          add(card.innerText || "", ownUrnHref(el) || hrefFrom(card), "urn");
+        }
+      }
+
+      // Strategy 4: content heuristic — text-rich elements that read like a
+      // recruiting post. Only the SMALLEST matching element per post is kept,
+      // so big wrapper divs are skipped.
+      const hasPostSignal = (text: string): boolean => {
+        if (emailRe.test(text)) return true;
+        if (kwRe.test(text)) return true;
+        const low = text.toLowerCase();
+        return words.some((w) => low.includes(w));
+      };
+      const cands: { el: HTMLElement; text: string }[] = [];
+      for (const el of Array.from(
+        document.querySelectorAll("div, section, article, li")
+      )) {
+        const text = (el as HTMLElement).innerText || "";
+        if (text.length < 100 || text.length > 8000) continue;
+        if (el.children.length < 2 || el.children.length > 60) continue;
+        if (!hasPostSignal(text)) continue;
+        cands.push({ el: el as HTMLElement, text: text.trim() });
+      }
+      cands.sort((a, b) => a.text.length - b.text.length);
+      const keptPrefixes: string[] = [];
+      for (const c of cands) {
+        if (out.length >= 30) break;
+        const prefix = c.text.slice(0, 200);
+        if (keptPrefixes.includes(prefix)) continue;
+        if (keptPrefixes.some((p) => c.text.includes(p)))
+          continue; // this element wraps an already-kept card
+        if (seenText.has(prefix)) continue;
+        seenText.add(prefix);
+        keptPrefixes.push(prefix);
+        out.push({ text: c.text, href: hrefFrom(c.el), via: "heuristic" });
+      }
+
       return out;
-    });
-    for (const f of found) push(f.text, [f.href]);
+    }, queryWords);
+
+    for (const f of found) {
+      const key = clean(f.text).slice(0, 200);
+      if (seen.has(key)) continue;
+      push(f.text, [f.href]);
+      if (f.via === "anchor") stats.byAnchor++;
+      else if (f.via === "urn") stats.byUrn++;
+      else stats.byHeuristic++;
+    }
   } catch {
-    /* ignore — strategy 1 may have found enough */
+    /* ignore — an earlier strategy may have found enough */
   }
 
-  return cards;
+  return { cards, stats };
 }
 
 /**
@@ -449,7 +604,7 @@ export async function scrapeLinkedInPosts(opts: {
     // Wait for the results to actually render (containers or post links).
     try {
       await page.waitForSelector(
-        'li.reusable-search__result-container, div.occludable-update, div.feed-shared-update-v2, a[href*="/feed/update/urn:li:activity:"], a[href*="/posts/"]',
+        'li.reusable-search__result-container, div.occludable-update, div.feed-shared-update-v2, a[href*="/feed/update/urn:li:activity:"], a[href*="/posts/"], [data-urn*="activity"]',
         { timeout: 15_000 }
       );
     } catch {
@@ -464,7 +619,7 @@ export async function scrapeLinkedInPosts(opts: {
     // the results panel still hasn't hydrated.
     await ensurePostsTab(page, log);
     await tryDismissInterstitials(page, log);
-    if ((await findPostCards(page)).length === 0) {
+    if ((await findPostCards(page, query)).cards.length === 0) {
       log("info", "Still no cards visible — reloading the results page once...");
       try {
         await page.reload({ waitUntil: "domcontentloaded", timeout: 60_000 });
@@ -480,6 +635,7 @@ export async function scrapeLinkedInPosts(opts: {
     const seen = new Set<string>();
     let cardsSeen = 0;
     let stagnantRounds = 0;
+    let statsLogged = false;
 
     for (let round = 0; round < scrollRounds && stagnantRounds < 3; round++) {
       // Expand "…more" so full post text (and emails) become visible.
@@ -498,7 +654,14 @@ export async function scrapeLinkedInPosts(opts: {
         /* ignore */
       }
 
-      const cards = await findPostCards(page);
+      const { cards, stats } = await findPostCards(page, query);
+      if (cards.length > 0 && !statsLogged) {
+        statsLogged = true;
+        log(
+          "info",
+          `Card discovery breakdown: containers=${stats.byContainer}, post-links=${stats.byAnchor}, data-urn=${stats.byUrn}, content-heuristic=${stats.byHeuristic}`
+        );
+      }
       if (cards.length === 0) {
         // A dialog may have popped up over the results — try clearing it.
         await tryDismissInterstitials(page, log);
@@ -584,6 +747,17 @@ export async function scrapeLinkedInPosts(opts: {
       const bodyText = (await pageVisibleText(page, 2000)).replace(/\s+/g, " ").slice(0, 1200);
       if (bodyText) {
         log("warn", `PAGE TEXT (first 1200 chars): ${bodyText}`);
+      }
+      const lowText = bodyText.toLowerCase();
+      if (
+        lowText.includes("unusual activity") ||
+        lowText.includes("checkpoint") ||
+        lowText.includes("security verification")
+      ) {
+        log(
+          "warn",
+          "LinkedIn is showing a SECURITY CHECK on this page — solve it in the opened browser window (or wait 10-15 minutes and re-run). Nothing is sent while the check is up."
+        );
       }
       await logDomFingerprint(page, log);
       await saveHtmlSnapshot(page, log);
