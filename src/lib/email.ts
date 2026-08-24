@@ -1,5 +1,5 @@
 import { config } from "./config";
-import { clean } from "./filters";
+import { clean, extractCleanUrl } from "./filters";
 
 function esc(s: string): string {
   return s
@@ -129,7 +129,7 @@ export function buildEmail(opts: {
 
   const reference = postReferenceExcerpt(postText);
   // Defense in depth: never wrap an already-wrapped link in markdown.
-  const postLinkClean = postLink.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").trim();
+  const postLinkClean = extractCleanUrl(postLink);
 
   let tail = "";
   if (reference) tail += `\n\n\nFOR REFERENCE\n\n${reference}`;

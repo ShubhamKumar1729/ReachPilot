@@ -184,12 +184,47 @@ export function shouldSendToPost(
   return { allowed: true, reason: "valid recruiter/job post" };
 }
 
+/**
+ * Recover a clean URL from clipboard content that may be markdown-wrapped
+ * or percent-mangled, e.g.:
+ *   [https://www.linkedin.com/posts/x-123-ABCD/](https://www.linkedin.com/posts/x-123-ABCD/)
+ *   [[url](url)](url)
+ *   https://www.linkedin.com/posts/x-123-ABCD/%5D(https:/...)/
+ * LinkedIn's "Copy link to post" (2026) puts a MARKDOWN link on the
+ * clipboard, so this must run on every clipboard read.
+ */
+export function extractCleanUrl(raw: string): string {
+  let t = String(raw ?? "").trim();
+  if (!t) return "";
+  for (let i = 0; i < 4; i++) {
+    const next = t
+      .replace(/%5D/gi, "]")
+      .replace(/%28/gi, "(")
+      .replace(/%29/gi, ")")
+      .replace(/\[([^\]]*)\]\(([^)]*)\)/g, (_m, p1, p2) => (p1 ? p1 : p2))
+      .replace(/^[[\]()\s]+/, "")
+      .replace(/[\]()\s]+$/, "")
+      .trim();
+    if (next === t) break;
+    t = next;
+  }
+  // Final safety net: pull the first real LinkedIn URL out of any remaining
+  // residue (e.g. a nested ...%5D(https:/...)/ blob the loop couldn't flatten).
+  const m = t.match(
+    /https?:\/\/(?:www\.)?(?:linkedin\.com\/[^\s\[\]()]+|lnkd\.in\/[^\s\[\]()]+)/i
+  );
+  if (m) {
+    return m[0].replace(/\/+$/, "/").replace(/[.,;]+$/, "");
+  }
+  return t;
+}
+
 /** Normalize LinkedIn post links to canonical /feed/update/urn:li:activity:ID form. */
 export function normalizePostLink(rawLink: string | null | undefined): string {
   let link = clean(String(rawLink ?? ""));
   if (!link) return "";
-  // Strip any markdown wrapper that leaked in ([url](url) → url).
-  link = link.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").trim();
+  // Strip markdown wrappers / percent-mangling that leaked in.
+  link = extractCleanUrl(link);
   if (!link) return "";
   link = link.replace(/&amp;/g, "&");
   link = link.replace(/%3A/gi, ":").replace(/%2F/gi, "/");

@@ -1,7 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { config } from "../lib/config";
-import { clean, extractEmails, normalizePostLink } from "../lib/filters";
+import {
+  clean,
+  extractCleanUrl,
+  extractEmails,
+  normalizePostLink,
+} from "../lib/filters";
 
 /** A post scraped from the LinkedIn search results feed. */
 export interface ScrapedPost {
@@ -732,7 +737,8 @@ async function resolvePermalinksViaMenu(
 
       // "Copy link to post" puts a SHORT lnkd.in link on the clipboard —
       // accept it, then resolve the redirect to the canonical post URL.
-      const trimmed = clip.trim();
+      // LinkedIn 2026 copies a MARKDOWN-wrapped link — recover the clean URL.
+      const trimmed = extractCleanUrl(clip);
       const isShortLink = trimmed.includes("lnkd.in");
       const isFullLink =
         trimmed.includes("linkedin.com") &&
