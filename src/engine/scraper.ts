@@ -500,6 +500,36 @@ async function findPostCards(
 }
 
 /**
+ * Best-effort author name from a card's text. LinkedIn's accessible text
+ * starts with a "Feed post" label line before the name, and name lines are
+ * often followed by "• 3rd+" / "• 2nd" degree markers.
+ */
+function authorFromCardText(text: string): string {
+  const lines = text
+    .split("\n")
+    .map((l) => l.replace(/^[•·]\s*/, "").trim())
+    .filter(Boolean);
+  const isUiLine = (l: string) =>
+    /^(feed post|reposted|promoted|sponsored|view profile|more options|copy link|follow|following|connect|message)$/i.test(
+      l
+    ) || /^\d+[hdmwy]\b/i.test(l);
+
+  // Pass 1: a line that looks like a person's name.
+  for (const l of lines.slice(0, 10)) {
+    if (isUiLine(l) || l.includes("@") || l.length > 60) continue;
+    const name = l.split(/\s+[•·|]\s+/)[0].trim();
+    if (name.length >= 3 && name.length <= 60 && /^[A-Z][A-Za-zÀ-ÿ\s.'-]+$/.test(name))
+      return name;
+  }
+  // Pass 2: first non-UI line, best effort.
+  for (const l of lines.slice(0, 10)) {
+    if (isUiLine(l) || l.includes("@") || l.length > 60) continue;
+    return l.split(/\s+[•·|]\s+/)[0].trim();
+  }
+  return "";
+}
+
+/**
  * Live LinkedIn scraping via Playwright with a persistent browser profile.
  *
  * - Opens a NEW Chromium tab on every run and navigates it to your search.
@@ -684,9 +714,9 @@ export async function scrapeLinkedInPosts(opts: {
         } catch {
           postLink = "";
         }
-        if (!postLink) {
-          postLink = `https://www.linkedin.com/feed/update/urn:li:activity:0/`;
-        }
+        // No fabricated fallback link: 2026 cards often carry no permalink at
+        // all, and a shared fake link would make the runner treat every such
+        // post as a duplicate of the first one.
 
         const key = postLink + "|" + card.text.slice(0, 200);
         if (seen.has(key)) continue;
@@ -694,7 +724,7 @@ export async function scrapeLinkedInPosts(opts: {
         cardsSeen++;
         newCards++;
 
-        const author = card.text.split("\n")[0]?.trim() ?? "";
+        const author = authorFromCardText(card.text);
         const emails = extractEmails(card.text);
         if (emails.length > 0) {
           posts.push({

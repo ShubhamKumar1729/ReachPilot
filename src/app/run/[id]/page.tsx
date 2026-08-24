@@ -230,14 +230,16 @@ export default function RunConsolePage() {
                     </p>
                   )}
                   {s.error && <p className="mt-1.5 text-[11px] text-redX">{s.error}</p>}
-                  <a
-                    href={s.postLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-1.5 inline-flex items-center gap-1 font-mono text-[10.5px] text-blueX/90 transition-colors hover:text-blueX"
-                  >
-                    <ExternalLink size={10} /> source post
-                  </a>
+                  {s.postLink && (
+                    <a
+                      href={s.postLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1.5 inline-flex items-center gap-1 font-mono text-[10.5px] text-blueX/90 transition-colors hover:text-blueX"
+                    >
+                      <ExternalLink size={10} /> source post
+                    </a>
+                  )}
                 </div>
               ))
             )}

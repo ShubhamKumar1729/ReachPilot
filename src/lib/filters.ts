@@ -67,7 +67,10 @@ export function clean(text: string | null | undefined): string {
 }
 
 export function normalizeEmail(email: string): string {
-  return clean(email).toLowerCase().replace(/^[.,;:()\[\]{}"'<>]+|[.,;:()\[\]{}"'<>]+$/g, "");
+  let t = clean(email).toLowerCase();
+  // Strip markdown-style link wrappers if they leak in: "[a@b.com](mailto:a@b.com)".
+  t = t.replace(/\]\(mailto:[^)]*\)/g, "").replace(/\]\([^)]*\)/g, "");
+  return t.replace(/^[.,;:()\[\]{}"'<>]+|[.,;:()\[\]{}"'<>]+$/g, "");
 }
 
 export function extractEmails(text: string): string[] {
@@ -104,6 +107,14 @@ export function isValidRecruiterEmail(email: string): boolean {
   if (blockedEmails().has(e)) return false;
   const [local, domain] = e.split("@");
   if (!local || !domain) return false;
+  // Never let structural junk (markdown leftovers, spaces, extra @) reach the sender.
+  if (/[()\[\]{}<>\\]/.test(e) || e.includes(" ") || e.split("@").length > 2) return false;
+  if (
+    !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/.test(
+      domain
+    )
+  )
+    return false;
   if (BAD_EMAIL_DOMAINS.has(domain)) return false;
   if (BAD_EMAIL_PREFIXES.has(local)) return false;
   if (local.length <= 1) return false;

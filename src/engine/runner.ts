@@ -144,8 +144,13 @@ async function executeRun(runId: string): Promise<void> {
 
       const post = feed[i];
       const postLink = normalizePostLink(post.postLink) || post.postLink;
-      if (seenPosts.has(postLink)) continue;
-      seenPosts.add(postLink);
+      // 2026 LinkedIn cards frequently have no permalink — dedupe by content
+      // in that case, or every link-less post looks like a duplicate of the
+      // first one and the whole feed gets dropped.
+      const postKey =
+        postLink || `text:${post.text.slice(0, 200).toLowerCase()}`;
+      if (seenPosts.has(postKey)) continue;
+      seenPosts.add(postKey);
 
       await setRunStatus(runId, { postsScanned: i + 1 });
 
