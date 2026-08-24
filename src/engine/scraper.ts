@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { config } from "../lib/config";
 import { clean, extractEmails, normalizePostLink } from "../lib/filters";
@@ -83,6 +84,85 @@ async function waitForManualLogin(
 interface FoundCard {
   text: string;
   href: string;
+}
+
+async function isVisible(
+  loc: import("playwright").Locator,
+  timeout = 1000
+): Promise<boolean> {
+  try {
+    await loc.first().waitFor({ state: "visible", timeout });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Compact visible text of the page — used as a last-resort diagnostic. */
+async function pageVisibleText(page: PWPage, max = 2000): Promise<string> {
+  try {
+    return await page.evaluate(
+      (n) => (document.body.innerText || "").slice(0, n),
+      max
+    );
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Dismiss the benign pop-ups LinkedIn likes to put over search results
+ * (cookie banner, survey, "no thanks", …). Only clicks well-known,
+ * harmless labels.
+ */
+async function tryDismissInterstitials(page: PWPage, log: LogFn): Promise<void> {
+  const patterns = [
+    /^got it$/i,
+    /^accept all cookies?$/i,
+    /^accept all$/i,
+    /^no thanks,? continue/i,
+    /^no thanks$/i,
+    /^dismiss$/i,
+  ];
+  for (const re of patterns) {
+    const btn = page.getByRole("button", { name: re });
+    if (await isVisible(btn, 400)) {
+      try {
+        await btn.first().click({ timeout: 1000 });
+        log("info", `Dismissed a page dialog ("${re.source}")`);
+        await page.waitForTimeout(800);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+}
+
+/**
+ * Make sure we're on the POSTS (content) tab of the search results —
+ * LinkedIn sometimes lands on People/Companies even when the URL says
+ * content, or a redirect after login can drop the tab.
+ */
+async function ensurePostsTab(page: PWPage, log: LogFn): Promise<void> {
+  try {
+    if (page.url().includes("search/results/content")) return;
+    const tab = page
+      .locator('a[href*="search/results/content"]')
+      .filter({ hasText: /posts/i })
+      .first();
+    if (await isVisible(tab, 1500)) {
+      await tab.click({ timeout: 2000 });
+      log("info", "Switched to the 'Posts' tab on the search results page.");
+      await page.waitForTimeout(3000);
+    } else {
+      log(
+        "warn",
+        `Search results page is not on the content tab (url: ${page.url()}) and no 'Posts' tab link was found.`
+      );
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 /**
@@ -292,6 +372,22 @@ export async function scrapeLinkedInPosts(opts: {
     }
     await page.waitForTimeout(1500);
 
+    // Pre-scrape recovery: right tab, no blocking dialog, one reload if
+    // the results panel still hasn't hydrated.
+    await ensurePostsTab(page, log);
+    await tryDismissInterstitials(page, log);
+    if ((await findPostCards(page)).length === 0) {
+      log("info", "Still no cards visible — reloading the results page once...");
+      try {
+        await page.reload({ waitUntil: "domcontentloaded", timeout: 60_000 });
+        await page.waitForTimeout(4000);
+        await ensurePostsTab(page, log);
+        await tryDismissInterstitials(page, log);
+      } catch {
+        /* ignore */
+      }
+    }
+
     const posts: ScrapedPost[] = [];
     const seen = new Set<string>();
     let cardsSeen = 0;
@@ -315,6 +411,10 @@ export async function scrapeLinkedInPosts(opts: {
       }
 
       const cards = await findPostCards(page);
+      if (cards.length === 0) {
+        // A dialog may have popped up over the results — try clearing it.
+        await tryDismissInterstitials(page, log);
+      }
       let newCards = 0;
       for (const card of cards) {
         const low = card.text.toLowerCase();
@@ -382,8 +482,22 @@ export async function scrapeLinkedInPosts(opts: {
         `No post cards detected at all (page: "${title}", url: ${page.url()}). ` +
           (noResults > 0
             ? `LinkedIn shows no results for "${query}" — try a simpler query, e.g. "java developer W2".`
-            : `The results page may have loaded differently than expected — try a simpler query and check the opened browser tab manually.`)
+            : `Something is between the bot and the results (a dialog, a Premium nudge, or a changed page). Saving a screenshot + page text so we can see it.`)
       );
+      // Ground truth: screenshot + visible page text.
+      const shotDir = path.join(process.cwd(), "output", "debug");
+      fs.mkdirSync(shotDir, { recursive: true });
+      const shot = path.join(shotDir, `linkedin_debug_${Date.now()}.png`);
+      try {
+        await page.screenshot({ path: shot });
+        log("warn", `SCREENSHOT SAVED: ${shot} — open it (folder output/debug) and send me the image so I can see exactly what the page shows.`);
+      } catch {
+        /* ignore */
+      }
+      const bodyText = (await pageVisibleText(page, 2000)).replace(/\s+/g, " ").slice(0, 1200);
+      if (bodyText) {
+        log("warn", `PAGE TEXT (first 1200 chars): ${bodyText}`);
+      }
     } else if (posts.length === 0) {
       log(
         "warn",
