@@ -62,6 +62,7 @@ export default function Dashboard() {
       {/* HERO */}
       <section className="fade-up relative overflow-hidden rounded-2xl border border-hairline bg-panel p-8 sm:p-12">
         <div className="scanline" />
+        <div className="hero-glow" aria-hidden />
         <div className="relative flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="label-mono mb-5 flex items-center gap-2.5">

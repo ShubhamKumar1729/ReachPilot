@@ -1,76 +1,78 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   ReachPilot design system — v3 "crafted"
-   Ember orange on warm neutrals. Two themes, both designed (not inverted).
-   v3 focus: readability first (contrast pass), strong type hierarchy,
-   disciplined accent use, two surface tiers, consistent control language.
+   ReachPilot design system — v4 "professional"
+   Cool slate neutrals, confident indigo accent, violet for AI features.
+   Both themes designed from scratch (dark = blue-black, light = cool paper).
+   Premium shadow layering, restrained motion, disciplined type scale.
    Token names are stable app-wide; only the values change per theme.
    ========================================================================== */
 
 :root {
-  /* ---------- light theme (warm paper) ---------- */
-  --rp-ink: #f5f4f0; /* app background */
-  --rp-abyss: #ecebe4; /* alternate background */
+  /* ---------- light theme (cool paper) ---------- */
+  --rp-ink: #f4f5f8; /* app background */
+  --rp-abyss: #eceef3; /* alternate background */
   --rp-panel: #ffffff; /* surface */
-  --rp-panel2: #f6f4ef; /* raised surface */
-  --rp-hairline: #e7e4db; /* subtle border */
-  --rp-hairline2: #d3cfc1; /* control border */
-  --rp-fog: #5d5749; /* muted text (AA at 10.5px) */
-  --rp-mist: #3a362c; /* body text */
-  --rp-paper: #1b1811; /* primary text / headings */
-  --rp-acid: #c2410c; /* brand ember orange */
-  --rp-acid-dim: #9a3412; /* deeper brand */
-  --rp-btn-bg: #c2410c; /* primary button */
-  --rp-btn-bg2: #a63a09; /* primary button hover */
+  --rp-panel2: #f1f3f7; /* raised surface */
+  --rp-hairline: #e5e8ef; /* subtle border */
+  --rp-hairline2: #d3d9e4; /* control border */
+  --rp-fog: #667085; /* muted text (AA at small sizes) */
+  --rp-mist: #3c4557; /* body text */
+  --rp-paper: #10151f; /* primary text / headings */
+  --rp-acid: #4f46e5; /* brand indigo */
+  --rp-acid-dim: #3730a3; /* deeper brand */
+  --rp-btn-bg: #4f46e5; /* primary button */
+  --rp-btn-bg2: #4338ca; /* primary button hover */
   --rp-btn-fg: #ffffff;
-  --rp-btn-shadow: 0 1px 2px rgba(146, 54, 9, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14);
-  --rp-ok: #157a45; /* success */
-  --rp-amber: #93480c; /* warning */
-  --rp-red: #ba1e1e; /* error */
-  --rp-blue: #32619f; /* informational / links */
-  --rp-slate: #5a6673; /* neutral system tone */
-  --rp-iris: #ae480a; /* AI feature accent (brand family) */
-  --rp-well: #f5f3ed; /* inset surface */
-  --rp-well2: #edeae1; /* deepest inset surface */
+  --rp-btn-shadow: 0 1px 2px rgba(49, 46, 129, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  --rp-ok: #047857; /* success */
+  --rp-amber: #b45309; /* warning */
+  --rp-red: #dc2626; /* error */
+  --rp-blue: #0369a1; /* informational / mail */
+  --rp-slate: #0e7490; /* system tone */
+  --rp-iris: #6d28d9; /* AI feature accent */
+  --rp-well: #f7f8fb; /* inset surface */
+  --rp-well2: #eef1f6; /* deepest inset surface */
   --rp-input-bg: #ffffff;
-  --rp-panel-shadow: 0 1px 2px rgba(27, 24, 17, 0.05);
-  --rp-panel-shadow-lg: 0 1px 2px rgba(27, 24, 17, 0.04),
-    0 24px 48px -24px rgba(27, 24, 17, 0.16);
+  --rp-panel-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --rp-panel-shadow-lg: 0 1px 2px rgba(16, 24, 40, 0.05),
+    0 16px 40px -20px rgba(16, 24, 40, 0.18);
+  --rp-glow: rgba(79, 70, 229, 0.055);
   color-scheme: light;
 }
 
 :root[data-theme="dark"] {
-  /* ---------- dark theme (warm charcoal) ---------- */
-  --rp-ink: #14120e;
-  --rp-abyss: #0f0e0b;
-  --rp-panel: #1b1913;
-  --rp-panel2: #24211a;
-  --rp-hairline: #2e2b21;
-  --rp-hairline2: #423d2f;
-  --rp-fog: #a39c88; /* muted text (readable at 10.5px) */
-  --rp-mist: #d9d3c1; /* body text */
-  --rp-paper: #f7f4eb; /* primary text / headings */
-  --rp-acid: #f97316;
-  --rp-acid-dim: #fb923c;
-  --rp-btn-bg: #f97316;
-  --rp-btn-bg2: #fb923c;
-  --rp-btn-fg: #1d1305;
-  --rp-btn-shadow: 0 1px 2px rgba(0, 0, 0, 0.4),
+  /* ---------- dark theme (blue-black) ---------- */
+  --rp-ink: #0a0c11;
+  --rp-abyss: #07090d;
+  --rp-panel: #10131a;
+  --rp-panel2: #161a24;
+  --rp-hairline: #212633;
+  --rp-hairline2: #2c3345;
+  --rp-fog: #8b95a9; /* muted text (readable at small sizes) */
+  --rp-mist: #b9c2d4; /* body text */
+  --rp-paper: #edf0f6; /* primary text / headings */
+  --rp-acid: #7c85ff;
+  --rp-acid-dim: #a5abff;
+  --rp-btn-bg: #6d76f5;
+  --rp-btn-bg2: #7d86ff;
+  --rp-btn-fg: #0a0c12;
+  --rp-btn-shadow: 0 1px 2px rgba(0, 0, 0, 0.45),
     inset 0 1px 0 rgba(255, 255, 255, 0.22);
-  --rp-ok: #55bf82;
-  --rp-amber: #e7ad52;
-  --rp-red: #f1776a;
-  --rp-blue: #92b6de;
-  --rp-slate: #959faa;
-  --rp-iris: #f7a76f;
-  --rp-well: #181611;
-  --rp-well2: #12100c;
-  --rp-input-bg: #14120e;
+  --rp-ok: #34d399;
+  --rp-amber: #fbbf24;
+  --rp-red: #f87171;
+  --rp-blue: #38bdf8;
+  --rp-slate: #22d3ee;
+  --rp-iris: #a78bfa;
+  --rp-well: #0d1017;
+  --rp-well2: #12151e;
+  --rp-input-bg: #0c0f16;
   --rp-panel-shadow: 0 0 0 rgba(0, 0, 0, 0);
   --rp-panel-shadow-lg: 0 0 0 rgba(0, 0, 0, 0),
-    0 24px 48px -24px rgba(0, 0, 0, 0.55);
+    0 24px 48px -24px rgba(0, 0, 0, 0.6);
+  --rp-glow: rgba(124, 133, 255, 0.05);
   color-scheme: dark;
 }
 
@@ -108,15 +110,30 @@ body {
   color: var(--color-mist);
   font-family: var(--font-display);
   font-size: 14px;
-  line-height: 1.55;
+  line-height: 1.6;
   min-height: 100vh;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
+/* ambient depth — a whisper of brand light at the top of every screen */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 420px;
+  background: radial-gradient(
+    900px 420px at 50% -140px,
+    var(--rp-glow),
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
 ::selection {
-  background: color-mix(in srgb, var(--rp-acid) 26%, transparent);
+  background: color-mix(in srgb, var(--rp-acid) 24%, transparent);
   color: var(--rp-paper);
 }
 
@@ -141,7 +158,7 @@ body {
 .panel {
   background: var(--color-panel);
   border: 1px solid var(--color-hairline);
-  border-radius: 16px;
+  border-radius: 14px;
   box-shadow: var(--rp-panel-shadow);
   position: relative;
 }
@@ -156,8 +173,8 @@ body {
   align-items: center;
   gap: 6px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.07em;
+  font-size: 10px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   padding: 4px 10px;
   border-radius: 999px;
@@ -172,10 +189,10 @@ body {
   justify-content: center;
   gap: 9px;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13.5px;
   letter-spacing: -0.01em;
-  border-radius: 11px;
-  padding: 11px 20px;
+  border-radius: 10px;
+  padding: 10px 18px;
   transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease,
     box-shadow 0.16s ease, transform 0.12s ease;
   cursor: pointer;
@@ -199,7 +216,7 @@ body {
 }
 .btn-ghost:hover:not(:disabled) {
   background: var(--color-panel2);
-  border-color: color-mix(in srgb, var(--rp-paper) 30%, var(--color-hairline2));
+  border-color: color-mix(in srgb, var(--rp-paper) 28%, var(--color-hairline2));
   color: var(--color-paper);
 }
 
@@ -216,8 +233,8 @@ body {
   width: 100%;
   background: var(--rp-input-bg);
   border: 1px solid var(--color-hairline2);
-  border-radius: 11px;
-  padding: 12px 16px;
+  border-radius: 10px;
+  padding: 11px 14px;
   font-family: var(--font-mono);
   font-size: 13px;
   color: var(--color-paper);
@@ -225,11 +242,11 @@ body {
   transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 .input-dark::placeholder {
-  color: color-mix(in srgb, var(--rp-fog) 82%, transparent);
+  color: color-mix(in srgb, var(--rp-fog) 85%, transparent);
 }
 .input-dark:focus {
   border-color: color-mix(in srgb, var(--rp-acid) 65%, var(--color-hairline2));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rp-acid) 15%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rp-acid) 14%, transparent);
 }
 
 /* sans-serif input for human text (names, sentences) — mono is reserved
@@ -238,8 +255,8 @@ body {
   width: 100%;
   background: var(--rp-input-bg);
   border: 1px solid var(--color-hairline2);
-  border-radius: 11px;
-  padding: 12px 16px;
+  border-radius: 10px;
+  padding: 11px 14px;
   font-family: var(--font-display);
   font-size: 14px;
   font-weight: 500;
@@ -248,35 +265,36 @@ body {
   transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 .input-sans::placeholder {
-  color: color-mix(in srgb, var(--rp-fog) 82%, transparent);
+  color: color-mix(in srgb, var(--rp-fog) 85%, transparent);
   font-weight: 400;
 }
 .input-sans:focus {
   border-color: color-mix(in srgb, var(--rp-acid) 65%, var(--color-hairline2));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rp-acid) 15%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rp-acid) 14%, transparent);
 }
 
 .label-mono {
   font-family: var(--font-mono);
   font-size: 10.5px;
+  font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--color-fog);
 }
 
-/* ---------- crafted extras (v3) ---------- */
+/* ---------- type & surface atoms ---------- */
 
 /* display numerals / headlines: confident, tight, tabular */
 .display {
   font-family: var(--font-display);
   font-weight: 700;
-  letter-spacing: -0.035em;
+  letter-spacing: -0.032em;
   font-variant-numeric: tabular-nums;
 }
 
 .tnum { font-variant-numeric: tabular-nums; }
 
-/* section heading inside a panel: 15px, semibold, no icon noise */
+/* section heading inside a panel */
 .section-title {
   font-size: 15px;
   font-weight: 650;
@@ -284,7 +302,7 @@ body {
   color: var(--color-paper);
 }
 
-/* real helper text — replaces fake "// code comment" lines */
+/* real helper text */
 .helper {
   font-size: 12.5px;
   line-height: 1.55;
@@ -318,7 +336,18 @@ body {
 }
 .table-soft tbody tr:last-child td { border-bottom: none; }
 
-/* ---------- motion (restrained) ---------- */
+/* hero spotlight — one soft brand glow behind the hero panel */
+.hero-glow {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background:
+    radial-gradient(560px 240px at 18% -40px, color-mix(in srgb, var(--rp-acid) 11%, transparent), transparent 70%),
+    radial-gradient(480px 220px at 85% 130%, color-mix(in srgb, var(--rp-iris) 8%, transparent), transparent 70%);
+  pointer-events: none;
+}
+
+/* ---------- motion (restrained, premium) ---------- */
 
 @keyframes caret-blink {
   0%, 49% { opacity: 1; }
@@ -339,7 +368,7 @@ body {
   from { opacity: 0; transform: translateY(3px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.log-line { animation: log-in 0.2s ease-out both; }
+.log-line { animation: log-in 0.18s ease-out both; }
 
 @keyframes pulse-dot {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--rp-acid) 45%, transparent); }
@@ -355,9 +384,9 @@ body {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.fade-up { animation: fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.fade-up { animation: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
-/* brand motion: capability marquee + soft multi-color light sweep */
+/* brand motion: capability marquee */
 @keyframes marquee-x {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
@@ -365,10 +394,11 @@ body {
 .marquee-track {
   display: flex;
   width: max-content;
-  animation: marquee-x 26s linear infinite;
+  animation: marquee-x 32s linear infinite;
   will-change: transform;
 }
 
+/* soft brand light sweep */
 @keyframes scan {
   0% { transform: translateY(-110%); }
   100% { transform: translateY(620%); }
@@ -382,11 +412,11 @@ body {
   background: linear-gradient(
     180deg,
     transparent 0%,
-    color-mix(in srgb, var(--rp-acid) 9%, transparent) 35%,
-    color-mix(in srgb, var(--rp-amber) 7%, transparent) 55%,
+    color-mix(in srgb, var(--rp-acid) 7%, transparent) 35%,
+    color-mix(in srgb, var(--rp-iris) 5%, transparent) 55%,
     transparent 100%
   );
-  animation: scan 7s linear infinite;
+  animation: scan 8s linear infinite;
   will-change: transform;
   pointer-events: none;
 }
