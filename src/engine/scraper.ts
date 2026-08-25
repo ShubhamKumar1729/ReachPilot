@@ -228,25 +228,47 @@ async function tryDismissInterstitials(page: PWPage, log: LogFn): Promise<void> 
 /**
  * Make sure we're on the POSTS (content) tab of the search results —
  * LinkedIn sometimes lands on People/Companies even when the URL says
- * content, or a redirect after login can drop the tab.
+ * content, or a redirect after login can drop the tab. Three detection
+ * strategies (LinkedIn keeps renaming markup): the tab's href, the
+ * accessible tab role, and an exact "Posts" label match.
  */
 async function ensurePostsTab(page: PWPage, log: LogFn): Promise<void> {
   try {
     if (page.url().includes("search/results/content")) return;
-    const tab = page
+    // 1) Tab link whose href targets the content endpoint.
+    const byHref = page
       .locator('a[href*="search/results/content"]')
       .filter({ hasText: /posts/i })
       .first();
-    if (await isVisible(tab, 1500)) {
-      await tab.click({ timeout: 2000 });
+    if (await isVisible(byHref, 1200)) {
+      await byHref.click({ timeout: 2000 });
       log("info", "Switched to the 'Posts' tab on the search results page.");
       await page.waitForTimeout(3000);
-    } else {
-      log(
-        "warn",
-        `Search results page is not on the content tab (url: ${page.url()}) and no 'Posts' tab link was found.`
-      );
+      return;
     }
+    // 2) Accessible tab role named "Posts".
+    const byRole = page.getByRole("tab", { name: /^posts/i }).first();
+    if (await isVisible(byRole, 1200)) {
+      await byRole.click({ timeout: 2000 });
+      log("info", "Switched to the 'Posts' tab (tab role).");
+      await page.waitForTimeout(3000);
+      return;
+    }
+    // 3) Any top-of-page control labelled exactly "Posts".
+    const byLabel = page
+      .locator('a, button, [role="tab"]')
+      .filter({ hasText: /^Posts$/i })
+      .first();
+    if (await isVisible(byLabel, 1200)) {
+      await byLabel.click({ timeout: 2000 });
+      log("info", "Switched to the 'Posts' tab (label match).");
+      await page.waitForTimeout(3000);
+      return;
+    }
+    log(
+      "warn",
+      `Search results page is not on the content tab (url: ${page.url()}) and no 'Posts' tab was found — the 'All' results page will be scraped as-is (post cards still carry their URNs).`
+    );
   } catch {
     /* ignore */
   }
@@ -957,15 +979,24 @@ export async function scrapeLinkedInPosts(opts: {
   }
 
   try {
-    const searchUrl = `https://www.linkedin.com/search/results/content/?keywords=${encodeURIComponent(query)}&origin=GLOBAL_SEARCH_HEADER`;
+    // LinkedIn serves search two ways, and in 2026 they can DISAGREE:
+    // the direct /content/ (posts) endpoint returned "No results found"
+    // for live runs while the "All" results page (what you get typing in
+    // the search bar) returned posts for the same keywords. So the primary
+    // path is /all/ -> click its "Posts" tab (ensurePostsTab), and the
+    // /content/ endpoint is the automatic fallback if /all/ comes up
+    // empty — whichever has cards wins.
+    const keywords = encodeURIComponent(query);
+    const searchUrl = `https://www.linkedin.com/search/results/all/?keywords=${keywords}&origin=GLOBAL_SEARCH_HEADER`;
+    const contentUrl = `https://www.linkedin.com/search/results/content/?keywords=${keywords}&origin=GLOBAL_SEARCH_HEADER`;
 
     // Prefer the fresh about:blank first tab; otherwise open a brand-new one.
     let page = context.pages()[0];
     if (!page || !page.url().startsWith("about:")) {
       page = await context.newPage();
     }
-    log("info", "New Chromium tab ready — navigating to LinkedIn posts search.");
-    log("info", `Navigating to LinkedIn posts search: "${query}"`);
+    log("info", "New Chromium tab ready — navigating to LinkedIn search (All results → Posts tab).");
+    log("info", `Navigating to LinkedIn search: "${query}"`);
     await page.goto(searchUrl, { timeout: 60_000, waitUntil: "domcontentloaded" });
     await page.waitForTimeout(4000);
 
@@ -1029,6 +1060,27 @@ export async function scrapeLinkedInPosts(opts: {
       log("info", "Still no cards visible — reloading the results page once...");
       try {
         await page.reload({ waitUntil: "domcontentloaded", timeout: 60_000 });
+        await page.waitForTimeout(4000);
+        await ensurePostsTab(page, log);
+        await tryDismissInterstitials(page, log);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    // Endpoint fallback: if the primary /all/ + Posts-tab flow still has no
+    // cards, try the direct /content/ posts search once (and vice versa).
+    // LinkedIn has shown "No results found" on one endpoint while the other
+    // serves results for the same keywords/account.
+    if ((await findPostCards(page, query)).cards.length === 0) {
+      const onContent = page.url().includes("search/results/content");
+      const altUrl = onContent ? searchUrl : contentUrl;
+      log(
+        "info",
+        "No cards on this results page — trying the alternate LinkedIn endpoint once..."
+      );
+      try {
+        await page.goto(altUrl, { timeout: 60_000, waitUntil: "domcontentloaded" });
         await page.waitForTimeout(4000);
         await ensurePostsTab(page, log);
         await tryDismissInterstitials(page, log);
