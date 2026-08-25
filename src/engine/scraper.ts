@@ -571,7 +571,8 @@ async function resolvePermalinksViaMenu(
   page: PWPage,
   posts: ScrapedPost[],
   log: LogFn,
-  isStopped?: () => boolean
+  isStopped?: () => boolean,
+  isPaused?: () => boolean
 ): Promise<void> {
   const missing = posts.filter((p) => !p.postLink).slice(0, 12);
   if (missing.length === 0) return;
@@ -582,6 +583,8 @@ async function resolvePermalinksViaMenu(
       log("info", "Stop requested — stopping post link capture.");
       break;
     }
+    while (isPaused?.() && !isStopped?.()) await sleep(500);
+    if (isStopped?.()) break;
     const targetEmail = (post.emails[0] || "").toLowerCase();
     if (!targetEmail) continue;
 
@@ -822,8 +825,9 @@ export async function scrapeLinkedInPosts(opts: {
   scrollRounds: number;
   log: LogFn;
   isStopped?: () => boolean;
+  isPaused?: () => boolean;
 }): Promise<ScrapeResult> {
-  const { query, scrollRounds, log, isStopped } = opts;
+  const { query, scrollRounds, log, isStopped, isPaused } = opts;
   let chromium: typeof import("playwright").chromium;
   try {
     ({ chromium } = await import("playwright"));
@@ -956,6 +960,9 @@ export async function scrapeLinkedInPosts(opts: {
         log("info", "Stop requested — ending the scrape early.");
         break;
       }
+      // Honor a user pause between scroll rounds.
+      while (isPaused?.() && !isStopped?.()) await sleep(500);
+      if (isStopped?.()) break;
       // Expand "…more" so full post text (and emails) become visible.
       await expandTruncatedPosts(page);
 
@@ -1049,7 +1056,7 @@ export async function scrapeLinkedInPosts(opts: {
     // 3-dot menu -> "Copy link to post" (clipboard).
     if (posts.length > 0 && !isStopped?.()) {
       log("info", "Opening 3-dot menus to copy the real post links...");
-      await resolvePermalinksViaMenu(page, posts, log, isStopped);
+      await resolvePermalinksViaMenu(page, posts, log, isStopped, isPaused);
     }
 
     if (cardsSeen === 0) {

@@ -1,5 +1,14 @@
 /** Client-safe row shapes (mirror of the Drizzle schema). */
 
+/** One role within a run. Role Name + Search Query + Max Emails + Customize
+ *  are the only mandatory fields; everything else is optional. */
+export interface RoleConfig {
+  role: string;
+  query: string; // effective query (advanced keywords/location already applied)
+  maxEmails: number;
+  customizeResume: boolean;
+}
+
 export interface RunRow {
   id: string;
   role: string;
@@ -13,6 +22,12 @@ export interface RunRow {
   error: string | null;
   createdAt: string;
   finishedAt: string | null;
+  // multi-role extensions (older runs have none of these)
+  roles?: RoleConfig[];
+  globalLimit?: number | null;
+  mode?: "live" | "test";
+  paused?: boolean;
+  roleProgress?: Array<{ role: string; sent: number; limit: number }>;
 }
 
 export interface SentRow {
@@ -38,6 +53,17 @@ export interface LogRow {
   createdAt: string;
 }
 
+export interface ResumeVersionRow {
+  id: string;
+  fileName: string;
+  role: string;
+  postAuthor: string;
+  runId: string;
+  mode: string;
+  size: number;
+  createdAt: string;
+}
+
 export interface StatsPayload {
   ok: boolean;
   totals: {
@@ -50,6 +76,13 @@ export interface StatsPayload {
   recentRuns: RunRow[];
   recentSent: SentRow[];
   dailyTarget: number;
+  byRole: Array<{
+    role: string;
+    runs: number;
+    sent: number;
+    failed: number;
+    lastRunAt: string | null;
+  }>;
 }
 
 export interface SettingsPayload {
@@ -80,6 +113,12 @@ export interface SettingsPayload {
   linkedinLoginWaitSec: number;
   dailyTarget: number;
   resume: { exists: boolean; filename: string; path: string; size: number };
+  lastRun: {
+    roles: RoleConfig[];
+    globalLimit: number | null;
+    mode: "live" | "test";
+    updatedAt: string;
+  } | null;
 }
 
 export function fmtDate(iso: string | null | undefined): string {

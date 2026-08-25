@@ -3,12 +3,19 @@ import type { LogRow, RunRow, SentRow } from "@/lib/types";
 
 /* ------------------------------ documents -------------------------------- */
 
-export interface RunDoc {
-  _id: string; // uuid
+export interface RoleCfg {
   role: string;
   query: string;
   maxEmails: number;
   customizeResume: boolean;
+}
+
+export interface RunDoc {
+  _id: string; // uuid
+  role: string; // first role (legacy field, kept for old UIs)
+  query: string; // first role's query (legacy)
+  maxEmails: number; // total budget across all roles
+  customizeResume: boolean; // legacy
   status: string; // queued | running | completed | stopped | failed
   sentCount: number;
   skippedCount: number;
@@ -16,6 +23,31 @@ export interface RunDoc {
   error: string | null;
   createdAt: Date;
   finishedAt: Date | null;
+  // multi-role + mode extensions (older runs have none of these)
+  roles?: RoleCfg[];
+  globalLimit?: number | null;
+  mode?: "live" | "test";
+  paused?: boolean;
+  roleProgress?: Array<{ role: string; sent: number; limit: number }>;
+}
+
+export interface ResumeVersionDoc {
+  _id: string; // uuid
+  fileName: string; // inside output/custom
+  role: string;
+  postAuthor: string;
+  runId: string;
+  mode: string; // live | test
+  size: number;
+  createdAt: Date;
+}
+
+export interface LastRunConfigDoc {
+  _id: string; // always "last"
+  roles: RoleCfg[];
+  globalLimit: number | null;
+  mode: "live" | "test";
+  updatedAt: Date;
 }
 
 export interface SentDoc {
@@ -71,6 +103,7 @@ async function ensureIndexes(db: Db): Promise<void> {
     db.collection("sent_emails").createIndex({ email: 1 }),
     db.collection("run_logs").createIndex({ runId: 1, seq: 1 }),
     db.collection("run_logs").createIndex({ seq: 1 }),
+    db.collection("resume_versions").createIndex({ createdAt: -1 }),
   ]);
 }
 
@@ -137,6 +170,30 @@ export async function logsCol(): Promise<Collection<LogDoc>> {
   return (await getDb()).collection<LogDoc>("run_logs");
 }
 
+export async function resumeVersionsCol(): Promise<Collection<ResumeVersionDoc>> {
+  return (await getDb()).collection<ResumeVersionDoc>("resume_versions");
+}
+
+/* --------------------- last-run config (smart defaults) ------------------ */
+
+export async function saveLastRunConfig(cfg: {
+  roles: RoleCfg[];
+  globalLimit: number | null;
+  mode: "live" | "test";
+}): Promise<void> {
+  const db = await getDb();
+  await db.collection<LastRunConfigDoc>("run_config").updateOne(
+    { _id: "last" },
+    { $set: { ...cfg, updatedAt: new Date() } },
+    { upsert: true }
+  );
+}
+
+export async function loadLastRunConfig(): Promise<LastRunConfigDoc | null> {
+  const db = await getDb();
+  return db.collection<LastRunConfigDoc>("run_config").findOne({ _id: "last" });
+}
+
 /** Monotonic sequence for log cursors (atomic counter doc). */
 export async function nextLogSeq(): Promise<number> {
   const db = await getDb();
@@ -193,6 +250,11 @@ export function toRunRow(d: RunDoc): RunRow {
     error: d.error,
     createdAt: d.createdAt.toISOString(),
     finishedAt: d.finishedAt ? d.finishedAt.toISOString() : null,
+    roles: d.roles,
+    globalLimit: d.globalLimit,
+    mode: d.mode,
+    paused: d.paused,
+    roleProgress: d.roleProgress,
   };
 }
 

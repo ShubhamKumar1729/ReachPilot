@@ -12,8 +12,13 @@ import {
   XCircle,
   TerminalSquare,
   FolderOpen,
+  Download,
+  ExternalLink,
+  Trash2,
+  Sparkles,
 } from "lucide-react";
-import type { SettingsPayload } from "@/lib/types";
+import type { ResumeVersionRow, SettingsPayload } from "@/lib/types";
+import { fmtDate } from "@/lib/types";
 
 export default function SettingsPage() {
   const [s, setS] = useState<SettingsPayload | null>(null);
@@ -149,6 +154,12 @@ export default function SettingsPage() {
           </dl>
         </div>
 
+        {/* resume versions */}
+        <ResumeVersionsPanel
+          baseExists={Boolean(s?.resume.exists)}
+          baseFilename={s?.resume.filename ?? ""}
+        />
+
         {/* how to run live */}
         <div className="panel fade-up relative overflow-hidden p-6" style={{ animationDelay: "240ms" }}>
           <div className="scanline" />
@@ -174,6 +185,123 @@ export default function SettingsPage() {
           </ol>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ResumeVersionsPanel({
+  baseExists,
+  baseFilename,
+}: {
+  baseExists: boolean;
+  baseFilename: string;
+}) {
+  const [versions, setVersions] = useState<ResumeVersionRow[]>([]);
+
+  const load = () => {
+    fetch("/api/resume/versions", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setVersions(Array.isArray(d.versions) ? d.versions : []))
+      .catch(() => undefined);
+  };
+  useEffect(load, []);
+
+  const del = async (id: string) => {
+    if (!confirm("Delete this generated resume version?")) return;
+    await fetch(`/api/resume/versions/${id}`, { method: "DELETE" }).catch(() => undefined);
+    load();
+  };
+
+  return (
+    <div className="panel fade-up p-6" style={{ animationDelay: "300ms" }}>
+      <p className="label-mono mb-4 flex items-center gap-2">
+        <Sparkles size={12} className="text-violetX" /> resume versions · generated per JD
+      </p>
+      {baseFilename && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-hairline bg-well px-4 py-3">
+          <FileText size={16} className={baseExists ? "text-acid" : "text-fog"} />
+          <div className="min-w-0">
+            <p className="truncate font-mono text-[12px] text-mist">
+              {baseFilename} <span className="text-fog">· original</span>
+            </p>
+            <p className="text-[10.5px] text-fog">
+              never modified — every generated version is stored separately
+            </p>
+          </div>
+          <span className="ml-auto flex shrink-0 items-center gap-1">
+            <a
+              href={`/api/resume/file?name=${encodeURIComponent(baseFilename)}&dir=base`}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-md p-1.5 text-fog/60 transition-colors hover:bg-panel2 hover:text-mist"
+              title="Preview original"
+            >
+              <ExternalLink size={13} />
+            </a>
+            <a
+              href={`/api/resume/file?name=${encodeURIComponent(baseFilename)}&dir=base&download=1`}
+              className="rounded-md p-1.5 text-fog/60 transition-colors hover:bg-panel2 hover:text-mist"
+              title="Download original"
+            >
+              <Download size={13} />
+            </a>
+          </span>
+        </div>
+      )}
+      {versions.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-hairline2 px-4 py-6 text-center text-[12px] text-fog">
+          No generated versions yet — turn on “AI tailor” in a run and every
+          JD-customized resume will be listed here.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {versions.map((v) => (
+            <div
+              key={v.id}
+              className="flex items-center gap-3 rounded-xl border border-hairline bg-well px-4 py-2.5"
+            >
+              <FileText size={15} className="shrink-0 text-violetX" />
+              <div className="min-w-0">
+                <p className="truncate text-[12.5px] font-semibold text-mist">
+                  {v.role}
+                  {v.mode === "test" && (
+                    <span className="ml-2 font-mono text-[9.5px] uppercase text-amberX">test</span>
+                  )}
+                </p>
+                <p className="truncate font-mono text-[10.5px] text-fog">
+                  for {v.postAuthor || "recruiter"} · {fmtDate(v.createdAt)} ·{" "}
+                  {(v.size / 1024).toFixed(1)} KB
+                </p>
+              </div>
+              <span className="ml-auto flex shrink-0 items-center gap-1">
+                <a
+                  href={`/api/resume/file?name=${encodeURIComponent(v.fileName)}&dir=custom`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-md p-1.5 text-fog/60 transition-colors hover:bg-panel2 hover:text-mist"
+                  title="Preview"
+                >
+                  <ExternalLink size={13} />
+                </a>
+                <a
+                  href={`/api/resume/file?name=${encodeURIComponent(v.fileName)}&dir=custom&download=1`}
+                  className="rounded-md p-1.5 text-fog/60 transition-colors hover:bg-panel2 hover:text-mist"
+                  title="Download"
+                >
+                  <Download size={13} />
+                </a>
+                <button
+                  onClick={() => del(v.id)}
+                  className="rounded-md p-1.5 text-fog/60 transition-colors hover:bg-redX/10 hover:text-redX"
+                  title="Delete this version"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

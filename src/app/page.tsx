@@ -14,6 +14,7 @@ import {
   MailCheck,
   ShieldCheck,
   FileText,
+  Gauge,
 } from "lucide-react";
 import type { StatsPayload } from "@/lib/types";
 import { fmtDate, runStatusColor } from "@/lib/types";
@@ -226,6 +227,44 @@ export default function Dashboard() {
           )}
         </div>
       </section>
+
+      {/* per-role performance */}
+      {data?.byRole && data.byRole.length > 0 && (
+        <section className="panel fade-up mt-6 overflow-hidden" style={{ animationDelay: "300ms" }}>
+          <div className="flex items-center justify-between border-b border-hairline px-5 py-3">
+            <h2 className="flex items-center gap-2.5 text-base font-bold text-paper">
+              <Gauge size={15} className="text-acid" /> Per-role performance
+            </h2>
+            <span className="font-mono text-[10px] uppercase tracking-widest text-fog">
+              last 10 active roles
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-left">
+              <thead>
+                <tr className="border-b border-hairline bg-panel2 font-mono text-[10px] uppercase tracking-[0.16em] text-fog">
+                  <th className="px-5 py-3 font-medium">role</th>
+                  <th className="px-5 py-3 font-medium">runs</th>
+                  <th className="px-5 py-3 font-medium">sent</th>
+                  <th className="px-5 py-3 font-medium">failed</th>
+                  <th className="px-5 py-3 font-medium">last run</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.byRole.map((r) => (
+                  <tr key={r.role} className="border-b border-hairline/60 last:border-0 transition-colors hover:bg-panel2/60">
+                    <td className="max-w-56 truncate px-5 py-3 text-[13px] font-semibold text-mist">{r.role}</td>
+                    <td className="px-5 py-3 font-mono text-[12px] text-mist">{r.runs}</td>
+                    <td className="px-5 py-3 font-mono text-[12px] text-ok">{r.sent}</td>
+                    <td className="px-5 py-3 font-mono text-[12px]">{r.failed > 0 ? <span className="text-redX">{r.failed}</span> : <span className="text-fog/50">0</span>}</td>
+                    <td className="px-5 py-3 font-mono text-[11px] text-fog">{fmtDate(r.lastRunAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {/* pipeline strip */}
       <section className="panel fade-up mt-6 grid gap-0 overflow-hidden sm:grid-cols-4" style={{ animationDelay: "340ms" }}>

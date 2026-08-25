@@ -14,6 +14,9 @@ import {
   ShieldCheck,
   Gauge,
   Trash2,
+  Pause,
+  Play,
+  FlaskConical,
 } from "lucide-react";
 import type { LogRow, RunRow, SentRow } from "@/lib/types";
 import { fmtDate, runStatusColor } from "@/lib/types";
@@ -75,6 +78,7 @@ export default function RunConsolePage() {
     stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
   };
 
+  const [pausing, setPausing] = useState(false);
   const stop = async () => {
     setStopping(true);
     try {
@@ -82,6 +86,18 @@ export default function RunConsolePage() {
       await poll();
     } finally {
       setStopping(false);
+    }
+  };
+
+  const setPaused = async (paused: boolean) => {
+    setPausing(true);
+    try {
+      await fetch(`/api/runs/${id}/${paused ? "pause" : "resume"}`, {
+        method: "POST",
+      });
+      await poll();
+    } finally {
+      setPausing(false);
     }
   };
 
@@ -98,6 +114,7 @@ export default function RunConsolePage() {
 
   const run = data?.run;
   const running = run?.status === "running" || run?.status === "queued";
+  const paused = Boolean(run?.paused) && running;
   const pct = run ? Math.min(100, Math.round((run.sentCount / Math.max(1, run.maxEmails)) * 100)) : 0;
 
   return (
@@ -112,9 +129,14 @@ export default function RunConsolePage() {
             {run?.role ?? "…"}
             {run && (
               <span className={`chip border ${runStatusColor(run.status)}`}>
-                {running && <span className="pulse-dot" />}
-              {run.status}
+                {running && !paused && <span className="pulse-dot" />}
+              {paused ? "paused" : run.status}
             </span>
+            )}
+            {run?.mode === "test" && (
+              <span className="chip border border-amberX/40 bg-amberX/10 text-amberX">
+                <FlaskConical size={10} /> test — nothing sent
+              </span>
             )}
             {run?.customizeResume && (
               <span className="chip border border-violetX/40 bg-violetX/10 text-violetX">
@@ -123,13 +145,35 @@ export default function RunConsolePage() {
             )}
           </h1>
           <p className="mt-1 max-w-2xl truncate font-mono text-[11.5px] text-fog">
-            query: {run?.query ?? "…"}
+            {run?.roles && run.roles.length > 1
+              ? `${run.roles.length} roles: ` + run.roles.map((r) => r.role).join(" → ")
+              : `query: ${run?.query ?? "…"}`}
           </p>
         </div>
         {running && (
-          <button onClick={stop} disabled={stopping} className="btn btn-danger">
-            <OctagonX size={15} /> {stopping ? "Stopping…" : "Stop run"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {paused ? (
+              <button
+                onClick={() => setPaused(false)}
+                disabled={pausing}
+                className="btn btn-acid"
+              >
+                <Play size={15} /> Resume
+              </button>
+            ) : (
+              <button
+                onClick={() => setPaused(true)}
+                disabled={pausing}
+                className="btn btn-ghost"
+                title="Pause between scroll rounds / emails / roles"
+              >
+                <Pause size={15} /> Pause
+              </button>
+            )}
+            <button onClick={stop} disabled={stopping} className="btn btn-danger">
+              <OctagonX size={15} /> {stopping ? "Stopping…" : "Stop run"}
+            </button>
+          </div>
         )}
       </div>
 
@@ -146,6 +190,18 @@ export default function RunConsolePage() {
               style={{ width: `${pct}%` }}
             />
           </div>
+          {run?.roleProgress && run.roleProgress.length > 1 && (
+            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
+              {run.roleProgress.map((p) => (
+                <span key={p.role} className="font-mono text-[10.5px] text-fog">
+                  {p.role}{" "}
+                  <span className={p.sent >= p.limit ? "text-ok" : "text-mist"}>
+                    {p.sent}/{p.limit}
+                  </span>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

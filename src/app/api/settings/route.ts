@@ -1,5 +1,6 @@
 import { config, isGroqConfigured, isSmtpConfigured } from "@/lib/config";
 import { baseResumeExists, baseResumePath } from "@/lib/resume";
+import { loadLastRunConfig } from "@/db";
 import fs from "node:fs";
 
 export const runtime = "nodejs";
@@ -37,6 +38,30 @@ export async function GET() {
   } catch {
     /* ignore */
   }
+  let lastRun: {
+    roles: {
+      role: string;
+      query: string;
+      maxEmails: number;
+      customizeResume: boolean;
+    }[];
+    globalLimit: number | null;
+    mode: "live" | "test";
+    updatedAt: string;
+  } | null = null;
+  try {
+    const last = await loadLastRunConfig();
+    if (last) {
+      lastRun = {
+        roles: last.roles,
+        globalLimit: last.globalLimit,
+        mode: last.mode,
+        updatedAt: last.updatedAt.toISOString(),
+      };
+    }
+  } catch {
+    /* smart defaults are optional — never break settings */
+  }
   return Response.json({
     ok: true,
     gmail: {
@@ -62,5 +87,6 @@ export async function GET() {
       path: baseResumePath(),
       size: resumeSize,
     },
+    lastRun,
   });
 }
