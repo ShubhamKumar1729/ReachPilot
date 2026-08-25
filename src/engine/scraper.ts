@@ -242,7 +242,7 @@ async function ensurePostsTab(page: PWPage, log: LogFn): Promise<void> {
       .first();
     if (await isVisible(byHref, 1200)) {
       await byHref.click({ timeout: 2000 });
-      log("info", "Switched to the 'Posts' tab on the search results page.");
+      log("info", `Switched to the 'Posts' tab (LinkedIn rewrote the URL itself: ${page.url()}).`);
       await page.waitForTimeout(3000);
       return;
     }
