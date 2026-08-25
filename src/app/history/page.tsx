@@ -103,7 +103,7 @@ export default function HistoryPage() {
           <p className="label-mono mb-2 flex items-center gap-2">
             <HistoryIcon size={12} className="text-acid" /> delivered submissions
           </p>
-          <h1 className="text-3xl font-bold tracking-tight text-paper sm:text-4xl">Outbox</h1>
+          <h1 className="display text-[30px] text-paper sm:text-[40px]">Outbox</h1>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={load} className="btn btn-ghost !px-4 !py-2.5 text-[13px]">
