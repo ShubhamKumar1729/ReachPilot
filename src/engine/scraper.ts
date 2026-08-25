@@ -1089,6 +1089,48 @@ export async function scrapeLinkedInPosts(opts: {
       }
     }
 
+    // Human-style search: LinkedIn's 2026 search build has been serving
+    // "No results found" for URL-navigated searches on some sessions while
+    // a search typed into the search box (which sets client-side app state)
+    // returns results. Final escalation: home feed -> type the query into
+    // the top search box -> Enter -> Posts tab.
+    if ((await findPostCards(page, query)).cards.length === 0) {
+      log(
+        "info",
+        "URL-based search returned nothing — typing the query into the search box, like a human..."
+      );
+      try {
+        await page.goto("https://www.linkedin.com/feed/", {
+          timeout: 60_000,
+          waitUntil: "domcontentloaded",
+        });
+        await page.waitForTimeout(3000);
+        const box = page
+          .locator('input[name="keywords"], input[type="search"], input[aria-label*="earch" i]')
+          .first();
+        if (await isVisible(box, 3000)) {
+          await box.click({ timeout: 2000 });
+          await box.pressSequentially(query, { delay: 45 });
+          await page.waitForTimeout(600);
+          await page.keyboard.press("Enter");
+          await page.waitForTimeout(5000);
+          if (!page.url().includes("/search/results/")) {
+            // Enter can land on an entity (person/company) — rerun via URL.
+            log("info", "Search box landed on an entity page — re-running via the results URL...");
+            await page.goto(searchUrl, { timeout: 60_000, waitUntil: "domcontentloaded" });
+            await page.waitForTimeout(4000);
+          }
+          await ensurePostsTab(page, log);
+          await tryDismissInterstitials(page, log);
+          log("info", `Search box executed (url: ${page.url()})`);
+        } else {
+          log("warn", "Top search box not found on the home feed — human-style search skipped.");
+        }
+      } catch {
+        /* fall through to diagnostics */
+      }
+    }
+
     const posts: ScrapedPost[] = [];
     const seen = new Set<string>();
     let cardsSeen = 0;
