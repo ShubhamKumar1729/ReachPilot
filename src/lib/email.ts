@@ -1,4 +1,4 @@
-import { config } from "./config";
+import { config, deMd } from "./config";
 import { clean, extractCleanUrl } from "./filters";
 
 function esc(s: string): string {
@@ -51,9 +51,25 @@ function defaultSkills(role: string): string {
   return "the skills and technologies relevant to this role";
 }
 
-function mdLink(text: string, href: string): string {
-  return `[${text}](${href})`;
-}
+/** Defense in depth at render time: .env values may carry chat-pasted
+ *  markdown wrappers ("[a@b.com](mailto:a@b.com)", nested variants) even
+ *  after config-level deMd — strip everything before it reaches an email. */
+const plain = (s: string): string => deMd(s ?? "");
+
+/** Extract the bare email address — the address must appear PLAIN, exactly
+ *  once, never as (or inside) a markdown link. */
+const plainEmail = (s: string): string => {
+  const t = plain(s);
+  const m = t.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+/);
+  return m ? m[0] : t;
+};
+
+/** Extract the bare LinkedIn URL from possibly-wrapped junk. */
+const plainUrl = (s: string): string => {
+  const t = plain(s);
+  const m = t.match(/https?:\/\/\S+/);
+  return m ? m[0] : t;
+};
 
 /**
  * Post text for the "FOR REFERENCE" section — the post itself, minus
@@ -87,7 +103,7 @@ export function postReferenceExcerpt(raw: string, max = 2000): string {
 
 export function buildSubject(role: string): string {
   const c = config.candidate;
-  return `${displayRole(role)} | ${c.name} | ${c.experience} | ${c.workAuth} | ${c.availability}`;
+  return `${displayRole(role)} | ${plain(c.name)} | ${plain(c.experience)} | ${plain(c.workAuth)} | ${plain(c.availability)}`;
 }
 
 /**
@@ -105,26 +121,37 @@ export function buildEmail(opts: {
   postLink: string;
 }): EmailPayload {
   const c = config.candidate;
+  // Sanitize every candidate field at render time — the email must never
+  // contain markdown wrappers, no matter what the .env holds.
+  const cand = {
+    name: plain(c.name),
+    experience: plain(c.experience),
+    workAuth: plain(c.workAuth),
+    availability: plain(c.availability),
+    phone: plain(c.phone),
+    email: plainEmail(c.email), // PLAIN, exactly once — never a mailto link
+    location: plain(c.location),
+    relocation: plain(c.relocation),
+    expectedRate: plain(c.expectedRate),
+    linkedin: plainUrl(c.linkedin), // plain URL, exactly once
+  };
   const { role, matchedSkills, postText, postLink } = opts;
   const subject = buildSubject(role);
   const Role = displayRole(role);
   const skillsLine = matchedSkills || defaultSkills(role);
 
-  const emailLink = c.email ? mdLink(c.email, `mailto:${c.email}`) : "";
-  const linkedinLink = c.linkedin ? mdLink(c.linkedin, c.linkedin) : "";
-
   const details: Array<[string, string]> = [
-    ["Candidate Name", c.name],
+    ["Candidate Name", cand.name],
     ["Applied Role", Role],
-    ["Total Experience", c.experience],
-    ["Phone / Contact", c.phone],
-    ["Email Address", emailLink],
-    ["Current Location", c.location],
-    ["Relocation", c.relocation],
-    ["Work Authorization", c.workAuth],
-    ["Availability", c.availability],
-    ["Rate / Compensation", c.expectedRate],
-    ["LinkedIn Profile", linkedinLink],
+    ["Total Experience", cand.experience],
+    ["Phone / Contact", cand.phone],
+    ["Email Address", cand.email],
+    ["Current Location", cand.location],
+    ["Relocation", cand.relocation],
+    ["Work Authorization", cand.workAuth],
+    ["Availability", cand.availability],
+    ["Rate / Compensation", cand.expectedRate],
+    ["LinkedIn Profile", cand.linkedin],
   ];
 
   const reference = postReferenceExcerpt(postText);
@@ -147,9 +174,9 @@ ${details.map(([k, v]) => `• ${k}: ${v}`).join("\n")}
 I have attached my updated resume for your review. Are you available for a brief call sometime this week to discuss this position? Thank you for your time and consideration; I look forward to hearing from you.
 
 Best regards,
-${c.name}
-Phone: ${c.phone} | Email: ${emailLink}
-LinkedIn: ${linkedinLink}${tail}`;
+${cand.name}
+Phone: ${cand.phone} | Email: ${cand.email}
+LinkedIn: ${cand.linkedin}${tail}`;
 
   const html = `<!DOCTYPE html>
 <html>
