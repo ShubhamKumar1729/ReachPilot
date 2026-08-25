@@ -562,10 +562,14 @@ async function expandTruncatedPosts(page: PWPage): Promise<number> {
 
 /**
  * Resolve real permalinks for posts whose card had no link. For each post:
- * 1) locate ITS card — the smallest text-rich element that both contains
- *    the post's email AND holds buttons (the card root, not a text div);
- * 2) click the 3-dot menu button INSIDE that card (never Follow/Like/etc.);
- * 3) choose "Copy link to post" and read the clipboard.
+ * 1) locate ITS card — the smallest text-rich container that contains the
+ *    post's email AND a plausible ⋮ menu button (the card root, not a text
+ *    div); the ⋮ must never be a Follow/Like/etc. button;
+ * 2) find the 3-dot button in the card, then in up to 4 ancestor levels
+ *    (company-post cards keep the ⋮ in a header sibling of the text);
+ * 3) open it and choose "Copy link to post" → read the clipboard;
+ * 4) if no button exists anywhere, open the post detail modal and use its
+ *    own More (⋮) button — then a final re-sweep pass for re-laid-out feeds.
  */
 async function resolvePermalinksViaMenu(
   page: PWPage,
@@ -574,135 +578,84 @@ async function resolvePermalinksViaMenu(
   isStopped?: () => boolean,
   isPaused?: () => boolean
 ): Promise<void> {
-  const missing = posts.filter((p) => !p.postLink).slice(0, 12);
-  if (missing.length === 0) return;
+  type BtnEl = import("playwright").ElementHandle;
+  const missing0 = posts.filter((p) => !p.postLink).slice(0, 12);
+  if (missing0.length === 0) return;
 
-  let captured = 0;
-  for (const post of missing) {
-    if (isStopped?.()) {
-      log("info", "Stop requested — stopping post link capture.");
-      break;
-    }
-    while (isPaused?.() && !isStopped?.()) await sleep(500);
-    if (isStopped?.()) break;
-    const targetEmail = (post.emails[0] || "").toLowerCase();
-    if (!targetEmail) continue;
+  const TEXT_EXCLUDE =
+    /follow|following|like|comment|repost|send|share|save|report|slop|view job|apply|\.{2,}\s*more|…\s*more/i;
 
-    // 1) The card for this email.
-    let cardEl: import("playwright").ElementHandle | null = null;
+  /** Best "3-dot menu" button inside a scope element (aria-label match wins,
+   *  otherwise the topmost icon-only button — the ⋮ lives in the card header,
+   *  so reaction-bar icons can never win). */
+  const findMenuButtonIn = async (scope: BtnEl): Promise<BtnEl | null> => {
     try {
-      const handle = await page.evaluateHandle((email) => {
-        const emailRe = /[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}/g;
-        const cands: { el: HTMLElement; len: number }[] = [];
-        for (const el of Array.from(
-          document.querySelectorAll("div, section, article, li")
-        )) {
-          const t = (el as HTMLElement).innerText || "";
-          if (t.length < 80 || t.length > 8000) continue;
-          if (
-            !(t.match(emailRe) || []).some((e) => e.toLowerCase() === email)
-          )
-            continue;
-          cands.push({ el: el as HTMLElement, len: t.length });
-        }
-        cands.sort((a, b) => a.len - b.len);
-        for (const c of cands) {
-          if (c.el.querySelectorAll("button").length > 0) return c.el;
-        }
-        return null;
-      }, targetEmail);
-      cardEl = handle.asElement();
-    } catch {
-      cardEl = null;
-    }
-    if (!cardEl) {
-      log(
-        "warn",
-        `Post link: card for ${targetEmail} not found on the page — link capture skipped for this post.`
-      );
-      continue;
-    }
-
-    // 2) The 3-dot button inside this card. Buttons with action text
-    //    (Follow, Like, Comment, Repost, Send, "… more"…) are excluded;
-    //    among the rest, an aria-label match wins, otherwise the last
-    //    icon-only button (the ⋮ lives in the card header).
-    let btnEl: import("playwright").ElementHandle | null = null;
-    try {
-      const h = await cardEl.evaluateHandle((el) => {
-        const btns = Array.from((el as HTMLElement).querySelectorAll("button")) as HTMLElement[];
-        const textExclude =
-          /follow|following|like|comment|repost|send|share|save|report|slop|view job|apply|\.{2,}\s*more|…\s*more/i;
-        const cand = btns.filter((b) => !textExclude.test(b.innerText || ""));
+      const h = await scope.evaluateHandle((el) => {
+        const btns = Array.from(
+          (el as HTMLElement).querySelectorAll("button")
+        ) as HTMLElement[];
+        const cand = btns.filter((b) => !TEXT_EXCLUDE.test(b.innerText || ""));
         const byLabel = cand.find((b) =>
           /option|menu|action|more/i.test(b.getAttribute("aria-label") || "")
         );
         if (byLabel) return byLabel;
         const iconOnly = cand.filter((b) => !(b.innerText || "").trim());
-        // The ⋮ lives in the card HEADER — pick the topmost icon-only button
-        // so reaction-bar icons can never win.
         const pick = iconOnly.length
           ? iconOnly.sort((a, b) => {
-              const ra = (a as HTMLElement).getBoundingClientRect();
-              const rb = (b as HTMLElement).getBoundingClientRect();
+              const ra = a.getBoundingClientRect();
+              const rb = b.getBoundingClientRect();
               return ra.top - rb.top;
             })[0]
           : cand[cand.length - 1] || null;
         return pick;
       });
-      btnEl = h.asElement();
+      return h.asElement();
     } catch {
-      btnEl = null;
+      return null;
     }
-    if (!btnEl) {
-      log(
-        "warn",
-        `Post link: no 3-dot menu button found inside the card for ${targetEmail}.`
-      );
-      continue;
-    }
+  };
 
+  const findCopyLinkItem = () =>
+    page
+      .evaluate(() => {
+        const matches: HTMLElement[] = [];
+        for (const el of Array.from(
+          document.querySelectorAll("div, span, a, li, button, p")
+        )) {
+          const t = (
+            (el as HTMLElement).innerText ||
+            (el as HTMLElement).textContent ||
+            ""
+          )
+            .trim()
+            .toLowerCase();
+          if (t === "copy link to post" || t === "copy link")
+            matches.push(el as HTMLElement);
+        }
+        const target = matches[matches.length - 1];
+        if (target) {
+          target.click();
+          return true;
+        }
+        return false;
+      })
+      .catch(() => false);
+
+  /** Given a menu button: scroll it center, open the menu, pick
+   *  "Copy link to post", read + clean the clipboard. Up to 3 attempts. */
+  const copyLinkViaButton = async (btnEl: BtnEl): Promise<string> => {
     try {
-      // Put the button in the MIDDLE of the viewport — top feed cards sit
-      // under LinkedIn's sticky header, which swallows a forced click there.
       await btnEl.evaluate((el) =>
         (el as HTMLElement).scrollIntoView({ block: "center" })
       );
     } catch {
-      continue;
+      /* best-effort */
     }
     await sleep(600);
 
-    // 3) Open the menu and pick "Copy link to post" — hover, a real (non-forced)
-    //    click, long polling (LinkedIn menus render lazily), up to 3 attempts.
-    const findCopyLinkItem = () =>
-      page
-        .evaluate(() => {
-          const matches: HTMLElement[] = [];
-          for (const el of Array.from(
-            document.querySelectorAll("div, span, a, li, button, p")
-          )) {
-            const t = (
-              (el as HTMLElement).innerText ||
-              (el as HTMLElement).textContent ||
-              ""
-            )
-              .trim()
-              .toLowerCase();
-            if (t === "copy link to post" || t === "copy link")
-              matches.push(el as HTMLElement);
-          }
-          const target = matches[matches.length - 1];
-          if (target) {
-            target.click();
-            return true;
-          }
-          return false;
-        })
-        .catch(() => false);
-
     let linkUrl = "";
     for (let attempt = 1; attempt <= 3 && !linkUrl; attempt++) {
+      if (isStopped?.()) break;
       // Clean slate: close any menu/overlay left over from a previous attempt.
       await page.keyboard.press("Escape").catch(() => undefined);
       await sleep(300);
@@ -722,10 +675,6 @@ async function resolvePermalinksViaMenu(
         try {
           await btnEl.click({ force: true, timeout: 3000 });
         } catch {
-          log(
-            "warn",
-            `Post link: could not click the 3-dot button for ${targetEmail} (attempt ${attempt}).`
-          );
           break;
         }
       }
@@ -737,10 +686,6 @@ async function resolvePermalinksViaMenu(
         clicked = await findCopyLinkItem();
       }
       if (!clicked) {
-        log(
-          "warn",
-          `Post link: "Copy link to post" did not appear after the 3-dot click (attempt ${attempt}, ${targetEmail}).`
-        );
         await page.keyboard.press("Escape").catch(() => undefined);
         await sleep(900);
         continue;
@@ -778,22 +723,161 @@ async function resolvePermalinksViaMenu(
           }
         }
         linkUrl = finalLink;
-      } else {
-        log(
-          "warn",
-          `Post link: clipboard read gave no usable URL for ${targetEmail} (got: ${
-            clip ? clip.slice(0, 60) : "empty"
-          }).`
-        );
-        // Stale/different content — one retry with a fresh menu.
+      }
+    }
+    return linkUrl;
+  };
+
+  /** One post: card → menu button (card → ancestors) → post modal fallback. */
+  const resolveOne = async (post: ScrapedPost): Promise<void> => {
+    const targetEmail = (post.emails[0] || "").toLowerCase();
+    if (!targetEmail) return;
+
+    // 1) The card for this email. Prefer the SMALLEST container that actually
+    //    holds a plausible ⋮ menu button — company-post cards often keep the
+    //    menu in a header SIBLING of the text block, and picking a smaller
+    //    action-button container without a ⋮ is what made capture fail.
+    let cardEl: BtnEl | null = null;
+    try {
+      const handle = await page.evaluateHandle((email) => {
+        const emailRe = /[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}/g;
+        const cands: { el: HTMLElement; len: number }[] = [];
+        for (const el of Array.from(
+          document.querySelectorAll("div, section, article, li")
+        )) {
+          const t = (el as HTMLElement).innerText || "";
+          if (t.length < 80 || t.length > 8000) continue;
+          if (
+            !(t.match(emailRe) || []).some((e) => e.toLowerCase() === email)
+          )
+            continue;
+          cands.push({ el: el as HTMLElement, len: t.length });
+        }
+        cands.sort((a, b) => a.len - b.len);
+        const hasMenuButton = (root: HTMLElement) => {
+          const btns = Array.from(
+            root.querySelectorAll("button")
+          ) as HTMLElement[];
+          const cand = btns.filter((b) => !TEXT_EXCLUDE.test(b.innerText || ""));
+          return cand.some(
+            (b) =>
+              /option|menu|action|more/i.test(b.getAttribute("aria-label") || "") ||
+              !(b.innerText || "").trim()
+          );
+        };
+        for (const c of cands)
+          if (c.el.querySelectorAll("button").length > 0 && hasMenuButton(c.el))
+            return c.el;
+        for (const c of cands)
+          if (c.el.querySelectorAll("button").length > 0) return c.el;
+        return null;
+      }, targetEmail);
+      cardEl = handle.asElement();
+    } catch {
+      cardEl = null;
+    }
+    if (!cardEl) {
+      log(
+        "warn",
+        `Post link: card for ${targetEmail} not found on the page — link capture skipped for this post.`
+      );
+      return;
+    }
+
+    // 2) Menu button inside the card…
+    let btnEl = await findMenuButtonIn(cardEl);
+    // …then walk up to 4 ancestor levels (the ⋮ can live in a header sibling
+    // of the text container on company posts).
+    if (!btnEl) {
+      let up = cardEl;
+      for (let lvl = 0; lvl < 4 && !btnEl; lvl++) {
+        try {
+          const parent = await up.evaluateHandle((el) =>
+            (el as HTMLElement).parentElement
+          );
+          const p = parent.asElement();
+          if (!p) break;
+          up = p;
+          btnEl = await findMenuButtonIn(up);
+        } catch {
+          break;
+        }
       }
     }
 
-    if (linkUrl) {
-      post.postLink = linkUrl;
-      captured++;
-      log("ok", `Post link captured for ${targetEmail}: ${linkUrl.slice(0, 90)}`);
+    if (btnEl) {
+      const linkUrl = await copyLinkViaButton(btnEl);
+      if (linkUrl) {
+        post.postLink = linkUrl;
+        log("ok", `Post link captured for ${targetEmail}: ${linkUrl.slice(0, 90)}`);
+        return;
+      }
+      log(
+        "warn",
+        `Post link: the 3-dot menu didn't yield a link for ${targetEmail} — trying the post modal.`
+      );
+    } else {
+      log(
+        "warn",
+        `Post link: no 3-dot menu button in the card or its ancestors for ${targetEmail} — trying the post modal.`
+      );
     }
+
+    // 3) Final fallback: open the post detail modal and use its More (⋮) button.
+    try {
+      await cardEl.evaluate((el) => {
+        const t = el as HTMLElement;
+        const target =
+          (t.querySelector("div, span, p") as HTMLElement | null) || t;
+        target.click();
+      });
+      await sleep(2500);
+      let dialogEl: BtnEl | null = null;
+      try {
+        const dh = await page.evaluateHandle(() => {
+          const d = document.querySelector('[role="dialog"]');
+          return (d as HTMLElement) || null;
+        });
+        dialogEl = dh.asElement();
+      } catch {
+        dialogEl = null;
+      }
+      if (dialogEl) {
+        const modalBtn = await findMenuButtonIn(dialogEl);
+        if (modalBtn) {
+          const linkUrl = await copyLinkViaButton(modalBtn);
+          if (linkUrl) {
+            post.postLink = linkUrl;
+            log("ok", `Post link captured (modal) for ${targetEmail}: ${linkUrl.slice(0, 90)}`);
+          }
+        }
+      }
+      await page.keyboard.press("Escape").catch(() => undefined);
+      await sleep(800);
+      await page.keyboard.press("Escape").catch(() => undefined);
+      await sleep(700);
+    } catch {
+      /* modal fallback is best-effort */
+    }
+  };
+
+  for (const post of missing0) {
+    if (isStopped?.()) {
+      log("info", "Stop requested — stopping post link capture.");
+      break;
+    }
+    while (isPaused?.() && !isStopped?.()) await sleep(500);
+    if (isStopped?.()) break;
+    await resolveOne(post);
+  }
+
+  // Final sweep: menu operations can re-layout the feed, so give any
+  // stragglers one more full pass before giving up on them.
+  for (const post of posts) {
+    if (isStopped?.()) break;
+    if (post.postLink) continue;
+    if (!(post.emails[0] || "").toLowerCase()) continue;
+    await resolveOne(post);
   }
 
   const resolved = posts.filter((p) => p.postLink).length;
@@ -804,7 +888,7 @@ async function resolvePermalinksViaMenu(
   if (resolved < posts.length) {
     log(
       "warn",
-      `${posts.length - resolved} post(s) still have NO post link and will be SKIPPED (post link is mandatory). Send me the "Post link:" log lines above so I can fix the flow.`
+      `${posts.length - resolved} post(s) still have NO post link and will be SKIPPED (post link is mandatory).`
     );
   }
 }

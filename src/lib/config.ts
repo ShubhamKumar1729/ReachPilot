@@ -4,8 +4,23 @@ function env(key: string, fallback = ""): string {
 }
 
 /** Strip markdown link wrappers ([x](y) → x) that sneak in from copy-paste. */
-function deMd(v: string): string {
-  return v.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").trim();
+export function deMd(v: string): string {
+  // Users paste values from chat, where emails/URLs get linkified
+  // ("[a@b.com](mailto:a@b.com)", sometimes nested). Strip ALL markdown link
+  // wrappers by looping until stable.
+  let t = String(v ?? "").trim();
+  for (let i = 0; i < 4; i++) {
+    const next = t
+      .replace(/\[([^\]]*)\]\s*\([^)]*\)/g, "$1") // [text](url) → text
+      .replace(/\]\s*\([^)]*\)/g, "") // orphan ](url)
+      .replace(/\(\s*mailto:[^)]*\)/g, "") // bare (mailto:url)
+      .replace(/\[([^\[\]]+)\]/g, "$1") // leftover [text]
+      .trim();
+    if (next === t) break;
+    t = next;
+  }
+  // Any dangling brackets left behind by nested wrappers.
+  return t.replace(/^[\[\]]+/, "").replace(/[\[\]]+$/, "").trim();
 }
 
 function envInt(key: string, fallback: number): number {

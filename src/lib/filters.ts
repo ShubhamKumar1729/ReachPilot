@@ -164,7 +164,16 @@ export function roleMatchesPost(role: string, postText: string): boolean {
   const low = clean(postText).toLowerCase();
   const tokens = roleTokens(role);
   if (tokens.length === 0) return true;
-  return tokens.some((t) => low.includes(t));
+  // Exact token anywhere in the post (original behavior).
+  if (tokens.some((t) => low.includes(t))) return true;
+  // Typos / abbreviated role names: a role token of 4+ chars also matches a
+  // post word sharing its first 4 letters ("javaaa" ~ "java", "pythn" ~ "python").
+  const words = low.match(/[a-z0-9+#.]{4,}/g) ?? [];
+  return tokens.some((t) => {
+    if (t.length < 4) return false;
+    const p = t.slice(0, 4);
+    return words.some((w) => w.slice(0, 4) === p);
+  });
 }
 
 export function shouldSendToPost(
