@@ -1091,43 +1091,116 @@ export async function scrapeLinkedInPosts(opts: {
 
     // Human-style search: LinkedIn's 2026 search build has been serving
     // "No results found" for URL-navigated searches on some sessions while
-    // a search typed into the search box (which sets client-side app state)
-    // returns results. Final escalation: home feed -> type the query into
-    // the top search box -> Enter -> Posts tab.
+    // a search executed through a real search box (which carries the app's
+    // client state) returns results. Try the search box ON the current
+    // results page first (it pre-loads the query), then the top nav box on
+    // the home feed. Multiple locator strategies — 2026 markup keeps
+    // renaming things (hashed class names).
     if ((await findPostCards(page, query)).cards.length === 0) {
       log(
         "info",
-        "URL-based search returned nothing — typing the query into the search box, like a human..."
+        "URL-based search returned nothing — executing the query through the search box, like a human..."
       );
-      try {
-        await page.goto("https://www.linkedin.com/feed/", {
-          timeout: 60_000,
-          waitUntil: "domcontentloaded",
-        });
-        await page.waitForTimeout(3000);
-        const box = page
-          .locator('input[name="keywords"], input[type="search"], input[aria-label*="earch" i]')
-          .first();
-        if (await isVisible(box, 3000)) {
-          await box.click({ timeout: 2000 });
-          await box.pressSequentially(query, { delay: 45 });
-          await page.waitForTimeout(600);
-          await page.keyboard.press("Enter");
-          await page.waitForTimeout(5000);
-          if (!page.url().includes("/search/results/")) {
-            // Enter can land on an entity (person/company) — rerun via URL.
-            log("info", "Search box landed on an entity page — re-running via the results URL...");
+      const boxCandidates = () =>
+        [
+          page.locator("#search-input"),
+          page.getByRole("searchbox"),
+          page.locator('input[name="keywords"]'),
+          page.locator('input[placeholder*="earch" i]'),
+          page.locator('nav input[type="text"], header input[type="text"]'),
+        ].map((l) => l.first());
+
+      const typeAndSubmit = async (): Promise<boolean> => {
+        for (const b of boxCandidates()) {
+          if (!(await isVisible(b, 1200))) continue;
+          try {
+            await b.click({ timeout: 2000 });
+            await page.keyboard.press("Control+a"); // select the pre-filled query
+            await b.pressSequentially(query, { delay: 45 });
+            await page.waitForTimeout(600);
+            await page.keyboard.press("Enter");
+            await page.waitForTimeout(6000);
+            return true;
+          } catch {
+            return false;
+          }
+        }
+        return false;
+      };
+
+      let executed = await typeAndSubmit(); // search box on the current (results) page
+      if (!executed) {
+        try {
+          await page.goto("https://www.linkedin.com/feed/", {
+            timeout: 60_000,
+            waitUntil: "domcontentloaded",
+          });
+          await page.waitForTimeout(3000);
+          executed = await typeAndSubmit(); // top nav box on the home feed
+        } catch {
+          executed = false;
+        }
+      }
+
+      if (executed) {
+        if (!page.url().includes("/search/results/")) {
+          // Enter can land on an entity (person/company) — rerun via URL.
+          log("info", "Search box landed on an entity page — re-running via the results URL...");
+          try {
             await page.goto(searchUrl, { timeout: 60_000, waitUntil: "domcontentloaded" });
             await page.waitForTimeout(4000);
+          } catch {
+            /* ignore */
           }
-          await ensurePostsTab(page, log);
-          await tryDismissInterstitials(page, log);
-          log("info", `Search box executed (url: ${page.url()})`);
-        } else {
-          log("warn", "Top search box not found on the home feed — human-style search skipped.");
         }
+        await ensurePostsTab(page, log);
+        await tryDismissInterstitials(page, log);
+        log("info", `Search box executed (url: ${page.url()})`);
+      } else {
+        log(
+          "warn",
+          "No usable search box found (results page or home feed) — LinkedIn's 2026 search markup has likely changed again; a screenshot is being saved so the selectors can be updated."
+        );
+      }
+    }
+
+    // Hard guard: only ever scrape an actual search results page. If every
+    // attempt left us somewhere else (e.g., the home feed after the search
+    // box wasn't found), one final results-URL attempt is made — and
+    // failing that, the run reports the failure. We must NEVER silently
+    // scrape an unrelated page: that returns query-irrelevant posts (and
+    // the duplicate protection would burn them as false duplicates).
+    if (!page.url().includes("/search/results/")) {
+      log(
+        "warn",
+        `Not on a search results page (url: ${page.url()}) — making one final attempt via the results URL...`
+      );
+      try {
+        await page.goto(searchUrl, { timeout: 60_000, waitUntil: "domcontentloaded" });
+        await page.waitForTimeout(4000);
+        await ensurePostsTab(page, log);
       } catch {
-        /* fall through to diagnostics */
+        /* ignore */
+      }
+      if (!page.url().includes("/search/results/")) {
+        log(
+          "err",
+          `Still not on a search results page (url: ${page.url()}) — LinkedIn's 2026 search needs fresh selectors. Saving a screenshot + page text.`
+        );
+        const shotDir = path.join(process.cwd(), "output", "debug");
+        fs.mkdirSync(shotDir, { recursive: true });
+        const shot = path.join(shotDir, `linkedin_debug_${Date.now()}.png`);
+        try {
+          await page.screenshot({ path: shot });
+          log("warn", `SCREENSHOT SAVED: ${shot} — send me this image so I can write the new 2026 selectors with your eyes on the markup.`);
+        } catch {
+          /* ignore */
+        }
+        return {
+          posts: [],
+          needsLogin: false,
+          note: "LinkedIn's search page could not be located (2026 markup change). Screenshot saved in output/debug — send it over so the selectors can be updated.",
+        };
       }
     }
 
