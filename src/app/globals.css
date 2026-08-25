@@ -273,6 +273,12 @@ body {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
 }
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee-x 26s linear infinite;
+  will-change: transform;
+}
 
 @keyframes scan {
   0% { transform: translateY(-110%); }
