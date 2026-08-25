@@ -567,9 +567,11 @@ export default function NewRunPage() {
                       <li key={r.id}>
                         <b className="text-mist">{r.role.trim()}</b> — {r.maxEmails} max
                         {r.customize === true ? " · AI-tailored resume" : " · base resume"}
-                        <span className="block truncate font-mono text-[11px] text-fog/80">
-                          {buildQuery(r.query.trim(), adv)}
-                        </span>
+                        {buildQuery(r.query.trim(), adv) !== r.role.trim() && (
+                          <span className="block truncate font-mono text-[11px] text-fog/80">
+                            {buildQuery(r.query.trim(), adv)}
+                          </span>
+                        )}
                       </li>
                     ))}
                   </ol>
@@ -635,7 +637,8 @@ export default function NewRunPage() {
               </div>
             )}
 
-            {/* step advance bar */}
+            {/* step advance bar — dots always; back/continue only until the
+                final step (launch + its own back live in step 2) */}
             <div className="flex items-center justify-between border-t border-hairline pt-4">
               <div className="flex gap-1.5">
                 {[0, 1, 2].map((i) => (
@@ -647,31 +650,33 @@ export default function NewRunPage() {
                   />
                 ))}
               </div>
-              <div className="flex items-center gap-2">
-                {step > 0 && (
+              {step < 2 && (
+                <div className="flex items-center gap-2">
+                  {step > 0 && (
+                    <button
+                      onClick={() => setStep((step - 1) as Step)}
+                      className="btn btn-ghost !px-4 !py-2 font-mono text-[12px] uppercase tracking-wider"
+                    >
+                      <ArrowLeft size={13} /> back
+                    </button>
+                  )}
                   <button
-                    onClick={() => setStep((step - 1) as Step)}
+                    onClick={() =>
+                      setStep(
+                        step === 0
+                          ? canNextFromRoles
+                            ? (1 as Step)
+                            : step
+                          : (2 as Step)
+                      )
+                    }
+                    disabled={step === 0 && !canNextFromRoles}
                     className="btn btn-ghost !px-4 !py-2 font-mono text-[12px] uppercase tracking-wider"
                   >
-                    <ArrowLeft size={13} /> back
+                    {step === 1 ? "skip / continue" : "continue"} <ChevronRight size={13} />
                   </button>
-                )}
-                <button
-                  onClick={() =>
-                    setStep(
-                      step === 0
-                        ? canNextFromRoles
-                          ? (1 as Step)
-                          : step
-                        : (2 as Step)
-                    )
-                  }
-                  disabled={step === 0 && !canNextFromRoles}
-                  className="btn btn-ghost !px-4 !py-2 font-mono text-[12px] uppercase tracking-wider"
-                >
-                  {step === 1 ? "skip / continue" : "continue"} <ChevronRight size={13} />
-                </button>
-              </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
