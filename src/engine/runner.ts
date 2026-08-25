@@ -72,6 +72,48 @@ export function isRunActive(runId: string): boolean {
   return registry().has(runId);
 }
 
+/** id of the in-memory active run, if any (only one run may live at a time). */
+export function getActiveRunId(): string | null {
+  for (const id of registry().keys()) return id;
+  return null;
+}
+
+let recoveryPromise: Promise<void> | null = null;
+/** After a server restart, any run still marked running/queued is dead
+ *  (the engine is in-memory). Mark it failed honestly — its sent emails are
+ *  already recorded, so duplicate protection still holds. */
+export function ensureStaleRecovery(): Promise<void> {
+  if (!recoveryPromise) {
+    recoveryPromise = (async () => {
+      try {
+        const runs = await runsCol();
+        const stale = await runs
+          .find({ status: { $in: ["running", "queued"] } })
+          .toArray();
+        for (const s of stale) {
+          if (!registry().has(s._id)) {
+            await runs.updateOne(
+              { _id: s._id },
+              {
+                $set: {
+                  status: "failed",
+                  paused: false,
+                  error:
+                    "Server restarted before this run finished — sent emails are recorded, nothing will be re-sent.",
+                  finishedAt: new Date(),
+                },
+              }
+            );
+          }
+        }
+      } catch {
+        /* no DB available — nothing to recover */
+      }
+    })();
+  }
+  return recoveryPromise;
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function log(runId: string, level: string, message: string) {

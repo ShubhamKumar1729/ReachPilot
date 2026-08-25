@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Radar, LayoutDashboard, Rocket, History, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
+import LiveRunBadge from "@/components/LiveRunBadge";
 
 const LINKS = [
   { href: "/", label: "Console", icon: LayoutDashboard },
@@ -60,6 +61,7 @@ export default function Nav() {
               </Link>
             );
           })}
+          <LiveRunBadge />
           <span className="ml-1 hidden sm:contents">
             <ThemeToggle />
           </span>

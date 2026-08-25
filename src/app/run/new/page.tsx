@@ -18,7 +18,9 @@ import {
   Plus,
   Trash2,
   FlaskConical,
+  Activity,
 } from "lucide-react";
+import Link from "next/link";
 import type { RunRow, SettingsPayload } from "@/lib/types";
 import { buildQuery } from "@/lib/queryBuilder";
 
@@ -101,10 +103,16 @@ export default function NewRunPage() {
         }
       })
       .catch(() => undefined);
-    fetch("/api/runs")
-      .then((r) => r.json())
-      .then((d) => setRuns(Array.isArray(d.runs) ? d.runs : []))
-      .catch(() => undefined);
+    const loadRuns = () => {
+      fetch("/api/runs", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d) => setRuns(Array.isArray(d.runs) ? d.runs : []))
+        .catch(() => undefined);
+    };
+    loadRuns();
+    // Keep the "run in progress" state live while the wizard is open.
+    const t = setInterval(loadRuns, 4000);
+    return () => clearInterval(t);
   }, []);
 
   const updateRole = (id: number, patch: Partial<RoleDraft>) =>
@@ -136,6 +144,10 @@ export default function NewRunPage() {
   const selected = roles.filter(
     (r) => r.selected && r.role.trim() && r.query.trim()
   );
+  const activeRun =
+    runs.find((r) => r.status === "running") ??
+    runs.find((r) => r.status === "queued") ??
+    null;
   const canNextFromRoles =
     roles.some((r) => r.selected) &&
     roles
@@ -253,6 +265,26 @@ export default function NewRunPage() {
           </div>
 
           <div className="space-y-6 px-5 py-6 sm:px-7">
+            {activeRun && (
+              <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amberX/50 bg-amberX/10 px-4 py-3">
+                <p className="flex items-center gap-2 font-mono text-[12px] font-bold text-amberX">
+                  <Activity size={15} className="animate-pulse" /> A live run is
+                  in progress — “{activeRun.role}”
+                </p>
+                <p className="w-full font-mono text-[11px] leading-relaxed text-fog sm:w-auto sm:flex-1">
+                  Only one run can execute at a time (two scrapes on one
+                  LinkedIn account = security checkpoint). Stop it or wait for
+                  it to finish, then launch this one.
+                </p>
+                <Link
+                  href={`/run/${activeRun.id}`}
+                  className="btn btn-ghost !px-3 !py-1.5 font-mono text-[11px] uppercase tracking-wider"
+                >
+                  view live log <ChevronRight size={12} />
+                </Link>
+              </div>
+            )}
+
             {history.map((h) => (
               <div key={h.label} className="log-line">
                 <p className="font-mono text-[12px] text-fog">
@@ -570,7 +602,16 @@ export default function NewRunPage() {
                 )}
 
                 <div className="flex items-center gap-3">
-                  <button onClick={launch} disabled={launching} className="btn btn-acid flex-1 !py-4 text-[15px]">
+                  <button
+                    onClick={launch}
+                    disabled={launching || Boolean(activeRun)}
+                    title={
+                      activeRun
+                        ? "A run is already in progress"
+                        : undefined
+                    }
+                    className="btn btn-acid flex-1 !py-4 text-[15px]"
+                  >
                     {launching ? (
                       <>
                         <Loader2 size={17} className="animate-spin" /> Igniting engine…

@@ -8,7 +8,11 @@ import {
 } from "@/db";
 import { config } from "@/lib/config";
 import { buildQuery, type AdvancedSearch } from "@/lib/queryBuilder";
-import { startRun } from "@/engine/runner";
+import {
+  ensureStaleRecovery,
+  getActiveRunId,
+  startRun,
+} from "@/engine/runner";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +29,7 @@ const clampMax = (v: unknown, fallback: number) =>
 
 export async function GET() {
   try {
+    void ensureStaleRecovery();
     const col = await runsCol();
     const docs = await col.find({}).sort({ createdAt: -1 }).limit(30).toArray();
     return Response.json({ ok: true, runs: docs.map(toRunRow) });
@@ -38,6 +43,23 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    await ensureStaleRecovery();
+
+    // One run at a time: a second live scrape on the same LinkedIn account
+    // while another is running risks a security checkpoint, so block it.
+    const activeId = getActiveRunId();
+    if (activeId) {
+      return Response.json(
+        {
+          ok: false,
+          error:
+            "A run is already in progress — wait for it to finish or stop it first (open its live log from the navbar badge).",
+          activeRunId: activeId,
+        },
+        { status: 409 }
+      );
+    }
+
     const body = (await req.json()) as {
       // legacy single-role shape (still fully supported)
       role?: string;

@@ -1,5 +1,5 @@
 import { logsCol, runsCol, sentCol, toLogRow, toRunRow, toSentRow } from "@/db";
-import { isRunActive } from "@/engine/runner";
+import { isRunActive, ensureStaleRecovery } from "@/engine/runner";
 import type { Filter } from "mongodb";
 import type { LogDoc } from "@/db";
 
@@ -11,6 +11,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    void ensureStaleRecovery();
     const { id } = await params;
     const url = new URL(req.url);
     const after = parseInt(url.searchParams.get("after") ?? "0", 10) || 0;
