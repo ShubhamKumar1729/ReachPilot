@@ -996,7 +996,7 @@ export async function scrapeLinkedInPosts(opts: {
       page = await context.newPage();
     }
     log("info", "New Chromium tab ready — navigating to LinkedIn search (All results → Posts tab).");
-    log("info", `Navigating to LinkedIn search: "${query}"`);
+    log("info", `Navigating to LinkedIn search: "${query}" → ${searchUrl}`);
     await page.goto(searchUrl, { timeout: 60_000, waitUntil: "domcontentloaded" });
     await page.waitForTimeout(4000);
 
