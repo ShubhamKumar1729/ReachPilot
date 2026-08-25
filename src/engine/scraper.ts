@@ -274,6 +274,25 @@ async function ensurePostsTab(page: PWPage, log: LogFn): Promise<void> {
   }
 }
 
+/**
+ * True when the results panel explicitly says "No results found" (the
+ * 2026 empty state, including its "Try removing filters" / typeahead
+ * suggestion text). Needed because the auto-open typeahead dropdown can
+ * make the heuristic card scanner report a stray "card" on an empty page,
+ * which would silently disable the search fallback ladder.
+ */
+async function pageShowsNoResults(page: PWPage): Promise<boolean> {
+  try {
+    return (
+      (await page
+        .getByText(/no results found|try removing filters|suggestions available/i)
+        .count()) > 0
+    );
+  } catch {
+    return false;
+  }
+}
+
 /** A post card found on the results page (text + optional post href). */
 interface FoundCard {
   text: string;
@@ -478,7 +497,15 @@ async function findPostCards(
       // Strategy 4: content heuristic — text-rich elements that read like a
       // recruiting post. Only the SMALLEST matching element per post is kept,
       // so big wrapper divs are skipped.
+      // Empty-state / typeahead UI text is NEVER a post: on the 2026
+      // "No results found" page the auto-open suggestion dropdown contains
+      // the query words, which used to fool this heuristic and disable the
+      // fallback ladder (a phantom card made every cards.length === 0 check
+      // false).
+      const junkRe =
+        /no results found|try removing filters|suggestions available|see all results|couldn'?t find|didn'?t find|nothing to show/i;
       const hasPostSignal = (text: string): boolean => {
+        if (junkRe.test(text)) return false; // empty-state / typeahead UI
         if (emailRe.test(text)) return true;
         if (kwRe.test(text)) return true;
         const low = text.toLowerCase();
@@ -1056,13 +1083,24 @@ export async function scrapeLinkedInPosts(opts: {
     // the results panel still hasn't hydrated.
     await ensurePostsTab(page, log);
     await tryDismissInterstitials(page, log);
-    if ((await findPostCards(page, query)).cards.length === 0) {
+    // Close the auto-open typeahead dropdown: it overlaps the results and
+    // its suggestion text pollutes the card scanner.
+    await page.keyboard.press("Escape").catch(() => undefined);
+    // "No cards" = zero real cards OR an explicit "No results found" page.
+    // The explicit check lets the fallback ladder fire even if a stray
+    // heuristic match exists (that stray match is exactly what disabled
+    // the ladder in the 2026 "No results found" runs).
+    const noCards = async (): Promise<boolean> =>
+      (await findPostCards(page, query)).cards.length === 0 ||
+      (await pageShowsNoResults(page));
+    if (await noCards()) {
       log("info", "Still no cards visible — reloading the results page once...");
       try {
         await page.reload({ waitUntil: "domcontentloaded", timeout: 60_000 });
         await page.waitForTimeout(4000);
         await ensurePostsTab(page, log);
         await tryDismissInterstitials(page, log);
+        await page.keyboard.press("Escape").catch(() => undefined);
       } catch {
         /* ignore */
       }
@@ -1072,7 +1110,7 @@ export async function scrapeLinkedInPosts(opts: {
     // cards, try the direct /content/ posts search once (and vice versa).
     // LinkedIn has shown "No results found" on one endpoint while the other
     // serves results for the same keywords/account.
-    if ((await findPostCards(page, query)).cards.length === 0) {
+    if (await noCards()) {
       const onContent = page.url().includes("search/results/content");
       const altUrl = onContent ? searchUrl : contentUrl;
       log(
@@ -1092,43 +1130,64 @@ export async function scrapeLinkedInPosts(opts: {
     // Human-style search: LinkedIn's 2026 search build has been serving
     // "No results found" for URL-navigated searches on some sessions while
     // a search executed through a real search box (which carries the app's
-    // client state) returns results. Try the search box ON the current
-    // results page first (it pre-loads the query), then the top nav box on
-    // the home feed. Multiple locator strategies — 2026 markup keeps
-    // renaming things (hashed class names).
-    if ((await findPostCards(page, query)).cards.length === 0) {
+    // client state) returns results. Focus order: the empty-state page's
+    // text-stable "Edit search" link (it focuses the box) -> 6 box locator
+    // strategies (2026 markup keeps renaming things) -> home feed nav box
+    // -> last resort: a bare Enter (the 2026 search page auto-focuses its
+    // box — the typeahead opens on load).
+    if (await noCards()) {
       log(
         "info",
         "URL-based search returned nothing — executing the query through the search box, like a human..."
       );
-      const boxCandidates = () =>
-        [
+      const focusSearchBox = async (): Promise<boolean> => {
+        try {
+          const edit = page.getByText(/^edit search$/i).first();
+          if (await isVisible(edit, 1500)) {
+            await edit.click({ timeout: 2000 });
+            await page.waitForTimeout(800);
+            log("info", "Focused the search box via 'Edit search'.");
+            return true;
+          }
+        } catch {
+          /* ignore */
+        }
+        const boxCandidates = [
           page.locator("#search-input"),
           page.getByRole("searchbox"),
           page.locator('input[name="keywords"]'),
           page.locator('input[placeholder*="earch" i]'),
           page.locator('nav input[type="text"], header input[type="text"]'),
+          page.locator("[contenteditable='true']"),
         ].map((l) => l.first());
-
-      const typeAndSubmit = async (): Promise<boolean> => {
-        for (const b of boxCandidates()) {
+        for (const b of boxCandidates) {
           if (!(await isVisible(b, 1200))) continue;
           try {
             await b.click({ timeout: 2000 });
-            await page.keyboard.press("Control+a"); // select the pre-filled query
-            await b.pressSequentially(query, { delay: 45 });
-            await page.waitForTimeout(600);
-            await page.keyboard.press("Enter");
-            await page.waitForTimeout(6000);
+            await page.waitForTimeout(400);
             return true;
           } catch {
-            return false;
+            continue;
           }
         }
         return false;
       };
 
-      let executed = await typeAndSubmit(); // search box on the current (results) page
+      const submitBoxSearch = async (): Promise<boolean> => {
+        try {
+          await page.keyboard.press("Control+a"); // replace the pre-filled query
+          await page.keyboard.type(query, { delay: 45 });
+          await page.waitForTimeout(600);
+          await page.keyboard.press("Enter");
+          await page.waitForTimeout(6000);
+          return true;
+        } catch {
+          return false;
+        }
+      };
+
+      let executed = false;
+      if (await focusSearchBox()) executed = await submitBoxSearch(); // box on the current (results) page
       if (!executed) {
         try {
           await page.goto("https://www.linkedin.com/feed/", {
@@ -1136,7 +1195,19 @@ export async function scrapeLinkedInPosts(opts: {
             waitUntil: "domcontentloaded",
           });
           await page.waitForTimeout(3000);
-          executed = await typeAndSubmit(); // top nav box on the home feed
+          if (await focusSearchBox()) executed = await submitBoxSearch(); // top nav box on the home feed
+        } catch {
+          executed = false;
+        }
+      }
+      if (!executed) {
+        // Last resort: the 2026 search page auto-focuses its box (the
+        // typeahead opens on load) — a bare Enter may execute the search.
+        log("info", "No search box located — trying a bare Enter (the box may be auto-focused)...");
+        try {
+          await page.keyboard.press("Enter");
+          await page.waitForTimeout(6000);
+          executed = page.url().includes("/search/results/");
         } catch {
           executed = false;
         }
@@ -1237,9 +1308,15 @@ export async function scrapeLinkedInPosts(opts: {
       for (const card of cards) {
         const low = card.text.toLowerCase();
         if (
-          ["home my network jobs messaging", "skip to main content", "sort by", "content type"].some((j) =>
-            low.includes(j)
-          )
+          [
+            "home my network jobs messaging",
+            "skip to main content",
+            "sort by",
+            "content type",
+            "no results found",
+            "suggestions available",
+            "see all results",
+          ].some((j) => low.includes(j))
         )
           continue;
 
