@@ -582,19 +582,20 @@ async function resolvePermalinksViaMenu(
   const missing0 = posts.filter((p) => !p.postLink).slice(0, 12);
   if (missing0.length === 0) return;
 
-  const TEXT_EXCLUDE =
-    /follow|following|like|comment|repost|send|share|save|report|slop|view job|apply|\.{2,}\s*more|…\s*more/i;
-
   /** Best "3-dot menu" button inside a scope element (aria-label match wins,
    *  otherwise the topmost icon-only button — the ⋮ lives in the card header,
    *  so reaction-bar icons can never win). */
   const findMenuButtonIn = async (scope: BtnEl): Promise<BtnEl | null> => {
     try {
       const h = await scope.evaluateHandle((el) => {
+        // NOTE: this function runs IN THE BROWSER (Playwright serializes it) —
+        // it may only reference browser globals, never outer JS variables.
+        const textExclude =
+          /follow|following|like|comment|repost|send|share|save|report|slop|view job|apply|\.{2,}\s*more|…\s*more/i;
         const btns = Array.from(
           (el as HTMLElement).querySelectorAll("button")
         ) as HTMLElement[];
-        const cand = btns.filter((b) => !TEXT_EXCLUDE.test(b.innerText || ""));
+        const cand = btns.filter((b) => !textExclude.test(b.innerText || ""));
         const byLabel = cand.find((b) =>
           /option|menu|action|more/i.test(b.getAttribute("aria-label") || "")
         );
@@ -740,6 +741,9 @@ async function resolvePermalinksViaMenu(
     let cardEl: BtnEl | null = null;
     try {
       const handle = await page.evaluateHandle((email) => {
+        // NOTE: runs IN THE BROWSER — no outer JS variables allowed here.
+        const textExclude =
+          /follow|following|like|comment|repost|send|share|save|report|slop|view job|apply|\.{2,}\s*more|…\s*more/i;
         const emailRe = /[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}/g;
         const cands: { el: HTMLElement; len: number }[] = [];
         for (const el of Array.from(
@@ -758,7 +762,7 @@ async function resolvePermalinksViaMenu(
           const btns = Array.from(
             root.querySelectorAll("button")
           ) as HTMLElement[];
-          const cand = btns.filter((b) => !TEXT_EXCLUDE.test(b.innerText || ""));
+          const cand = btns.filter((b) => !textExclude.test(b.innerText || ""));
           return cand.some(
             (b) =>
               /option|menu|action|more/i.test(b.getAttribute("aria-label") || "") ||
