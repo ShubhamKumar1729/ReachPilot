@@ -35,6 +35,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           }}
         />
         <div className="relative z-10 flex min-h-screen flex-col">
+          {/* brand hairline — the one constant across every screen */}
+          <div className="fixed inset-x-0 top-0 z-50 h-0.5 bg-acid" />
           <Nav />
           <CommandPalette />
           <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-16 sm:px-6 lg:px-8">

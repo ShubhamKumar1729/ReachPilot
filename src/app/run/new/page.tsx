@@ -241,7 +241,7 @@ export default function NewRunPage() {
           <p className="label-mono mb-2 flex items-center gap-2">
             <Terminal size={12} className="text-acid" /> new outreach run · guided setup
           </p>
-          <h1 className="text-3xl font-bold tracking-tight text-paper sm:text-4xl">
+          <h1 className="display text-[30px] text-paper sm:text-[40px]">
             Configure &amp; launch<span className="caret" />
           </h1>
         </div>
@@ -320,10 +320,9 @@ export default function NewRunPage() {
                     </button>
                   </div>
                 </div>
-                <p className="font-mono text-[10.5px] leading-relaxed text-fog/80">
-                  {"// "} only Role + Search Query + Max Emails + Customize are
-                  required. Add as many roles as you like — they run one after
-                  another.
+                <p className="helper max-w-xl text-[12.5px] leading-relaxed">
+                  Only Role + Search Query + Max Emails + Customize are required.
+                  Add as many roles as you like — they run one after another.
                 </p>
 
                 {roles.map((d, i) => (
@@ -360,7 +359,7 @@ export default function NewRunPage() {
                     <div className="space-y-3">
                       <input
                         ref={i === 0 ? inputRef : undefined}
-                        className="input-dark"
+                        className="input-sans"
                         placeholder='role — e.g. "Java Developer"'
                         value={d.role}
                         onChange={(e) => updateRole(d.id, { role: e.target.value })}
@@ -437,10 +436,10 @@ export default function NewRunPage() {
                 <p className="font-mono text-[12px] text-fog">
                   <span className="text-acid">$</span> advanced settings <span className="text-fog/60">(all optional — skip if you don&apos;t need them)</span>
                 </p>
-                <p className="font-mono text-[10.5px] leading-relaxed text-fog/80">
-                  {"// "} keywords, locations and companies are merged into each
-                  role&apos;s LinkedIn posts search using real LinkedIn operators
-                  (AND / OR / -exclude). Empty = the same broad search as before.
+                <p className="helper max-w-xl text-[12.5px] leading-relaxed">
+                  Keywords, locations and companies are merged into each role&apos;s
+                  LinkedIn posts search using real LinkedIn operators (AND / OR /
+                  -exclude). Leave empty for the same broad search as before.
                 </p>
 
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -761,10 +760,7 @@ function AdvField({
       </p>
       {children}
       {hint && (
-        <p className="mt-1.5 font-mono text-[10px] leading-relaxed text-fog/70">
-          {"// "}
-          {hint}
-        </p>
+        <p className="helper mt-1.5 text-[11.5px] leading-relaxed">{hint}</p>
       )}
     </div>
   );

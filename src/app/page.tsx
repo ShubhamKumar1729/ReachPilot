@@ -64,15 +64,15 @@ export default function Dashboard() {
         <div className="scanline" />
         <div className="relative flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="label-mono mb-4 flex items-center gap-2">
+            <p className="label-mono mb-5 flex items-center gap-2.5">
               <span className="pulse-dot" /> system online · engine ready
             </p>
-            <h1 className="max-w-2xl text-4xl font-bold leading-[1.05] tracking-tight text-paper sm:text-6xl">
+            <h1 className="display max-w-2xl text-[38px] leading-[1.04] text-paper sm:text-[58px]">
               Hunt genuine posts.
               <br />
               <span className="text-acid">Strike recruiter inboxes.</span>
             </h1>
-            <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-fog">
+            <p className="helper mt-5 max-w-xl text-[15px] leading-relaxed">
               Feed it a role and a LinkedIn search query. ReachPilot scrapes real hiring
               posts, blocks bench-sales noise, optionally tailors your resume per JD with
               Groq, and dispatches polished applications through your Gmail.
@@ -118,15 +118,15 @@ export default function Dashboard() {
           accent="violetX"
           delay={60}
         />
-        <div className="panel fade-up p-5" style={{ animationDelay: "120ms" }}>
+        <div className="panel fade-up p-6" style={{ animationDelay: "120ms" }}>
           <div className="flex items-center justify-between">
-            <span className="grid size-8 place-items-center rounded-lg border border-hairline2 bg-panel2 text-amberX">
+            <span className="grid size-9 place-items-center rounded-[10px] border border-hairline2 bg-panel2 text-amberX">
               <Crosshair size={16} />
             </span>
-            <span className="font-mono text-[10px] uppercase tracking-widest text-fog">today</span>
+            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-fog">today</span>
           </div>
-          <p className="mt-4 text-3xl font-bold text-paper">{today?.count ?? 0}</p>
-          <p className="mt-1 text-xs text-fog">sent today · target {target}/day</p>
+          <p className="display mt-4 text-[34px] leading-none text-paper">{today?.count ?? 0}</p>
+          <p className="helper mt-1.5 text-[12px]">sent today · target {target}/day</p>
           <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-hairline">
             <div
               className="h-full rounded-full bg-acid transition-all duration-700"
@@ -190,8 +190,8 @@ export default function Dashboard() {
             <h2 className="flex items-center gap-2.5 text-lg font-bold text-paper">
               <MailCheck size={17} className="text-acid" /> Latest Outbox
             </h2>
-            <Link href="/history" className="font-mono text-[11px] uppercase tracking-widest text-fog transition-colors hover:text-acid">
-              view all
+            <Link href="/history" className="font-mono text-[11.5px] font-medium text-acid hover:underline">
+              view all →
             </Link>
           </div>
           {!data || data.recentSent.length === 0 ? (
@@ -240,7 +240,7 @@ export default function Dashboard() {
             </span>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] text-left">
+            <table className="table-soft w-full min-w-[560px] text-left">
               <thead>
                 <tr className="border-b border-hairline bg-panel2 font-mono text-[10px] uppercase tracking-[0.16em] text-fog">
                   <th className="px-5 py-3 font-medium">role</th>
@@ -305,15 +305,15 @@ function StatCard({
     violetX: "text-violetX",
   } as const;
   return (
-    <div className="panel fade-up p-5" style={{ animationDelay: `${delay}ms` }}>
+    <div className="panel fade-up p-6" style={{ animationDelay: `${delay}ms` }}>
       <div className="flex items-center justify-between">
-        <span className={`grid size-8 place-items-center rounded-lg border border-hairline2 bg-panel2 ${colorMap[accent]}`}>
+        <span className={`grid size-9 place-items-center rounded-[10px] border border-hairline2 bg-panel2 ${colorMap[accent]}`}>
           {icon}
         </span>
       </div>
-      <p className="mt-4 text-3xl font-bold tracking-tight text-paper">{value}</p>
-      <p className="mt-0.5 text-[12.5px] font-medium text-mist">{label}</p>
-      <p className="mt-1 font-mono text-[10px] uppercase tracking-wider text-fog">{sub}</p>
+      <p className="display mt-4 text-[34px] leading-none text-paper">{value}</p>
+      <p className="mt-1.5 text-[13.5px] font-semibold text-paper">{label}</p>
+      <p className="helper mt-1 font-mono text-[10.5px] uppercase tracking-[0.1em]">{sub}</p>
     </div>
   );
 }

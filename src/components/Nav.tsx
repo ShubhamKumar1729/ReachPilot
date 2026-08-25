@@ -29,14 +29,14 @@ export default function Nav() {
     <header className="sticky top-0 z-40 border-b border-hairline bg-ink/90 backdrop-blur">
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="group flex items-center gap-3">
-          <span className="grid size-9 place-items-center rounded-lg border border-acid/30 bg-acid/10 text-acid transition-colors group-hover:border-acid/60">
+          <span className="grid size-9 place-items-center rounded-[10px] border border-acid/40 bg-acid/10 text-acid transition-colors group-hover:border-acid/70">
             <Radar size={18} strokeWidth={2.2} />
           </span>
           <span className="leading-tight">
-            <span className="block text-[15px] font-bold tracking-wide text-paper">
+            <span className="block text-[16px] font-bold tracking-[0.01em] text-paper">
               REACH<span className="text-acid">PILOT</span>
             </span>
-            <span className="block font-mono text-[9.5px] uppercase tracking-[0.22em] text-fog">
+            <span className="block font-mono text-[9.5px] uppercase tracking-[0.24em] text-mist">
               recruiter outreach engine
             </span>
           </span>
@@ -50,14 +50,17 @@ export default function Nav() {
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors ${
+                className={`relative flex items-center gap-2 rounded-lg px-3 py-2 text-[13.5px] font-medium transition-colors ${
                   active
-                    ? "bg-acid/10 text-acid"
-                    : "text-fog hover:bg-panel2 hover:text-mist"
+                    ? "text-paper"
+                    : "text-fog hover:bg-panel2 hover:text-paper"
                 }`}
               >
-                <Icon size={15} strokeWidth={2.2} />
+                <Icon size={15} strokeWidth={2.2} className={active ? "text-acid" : ""} />
                 <span className="hidden sm:inline">{label}</span>
+                {active && (
+                  <span className="absolute inset-x-3 -bottom-[13px] h-[2px] rounded-full bg-acid" />
+                )}
               </Link>
             );
           })}

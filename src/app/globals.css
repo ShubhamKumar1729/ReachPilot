@@ -1,71 +1,76 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   ReachPilot design system
-   One brand: ember orange on warm neutrals. Two themes, both considered.
+   ReachPilot design system — v3 "crafted"
+   Ember orange on warm neutrals. Two themes, both designed (not inverted).
+   v3 focus: readability first (contrast pass), strong type hierarchy,
+   disciplined accent use, two surface tiers, consistent control language.
    Token names are stable app-wide; only the values change per theme.
    ========================================================================== */
 
 :root {
   /* ---------- light theme (warm paper) ---------- */
-  --rp-ink: #f4f3ef; /* app background */
-  --rp-abyss: #ebeae4; /* alternate background */
+  --rp-ink: #f5f4f0; /* app background */
+  --rp-abyss: #ecebe4; /* alternate background */
   --rp-panel: #ffffff; /* surface */
-  --rp-panel2: #f3f1ec; /* raised surface */
-  --rp-hairline: #e4e1d8; /* subtle border */
-  --rp-hairline2: #d2cec2; /* strong border */
-  --rp-fog: #6d6759; /* muted text */
-  --rp-mist: #454136; /* secondary text */
-  --rp-paper: #221f18; /* primary text */
+  --rp-panel2: #f6f4ef; /* raised surface */
+  --rp-hairline: #e7e4db; /* subtle border */
+  --rp-hairline2: #d3cfc1; /* control border */
+  --rp-fog: #5d5749; /* muted text (AA at 10.5px) */
+  --rp-mist: #3a362c; /* body text */
+  --rp-paper: #1b1811; /* primary text / headings */
   --rp-acid: #c2410c; /* brand ember orange */
   --rp-acid-dim: #9a3412; /* deeper brand */
   --rp-btn-bg: #c2410c; /* primary button */
-  --rp-btn-bg2: #a5370a; /* primary button hover */
+  --rp-btn-bg2: #a63a09; /* primary button hover */
   --rp-btn-fg: #ffffff;
-  --rp-btn-shadow: 0 1px 2px rgba(160, 60, 10, 0.28);
-  --rp-ok: #1a7a45; /* success */
-  --rp-amber: #92400e; /* warning */
-  --rp-red: #b91c1c; /* error */
-  --rp-blue: #2f5f9d; /* informational / links */
-  --rp-slate: #5b6773; /* neutral system tone */
-  --rp-iris: #b0490b; /* AI feature accent (brand family) */
-  --rp-well: #f4f2ec; /* inset surface */
-  --rp-well2: #eceae2; /* deepest inset surface */
+  --rp-btn-shadow: 0 1px 2px rgba(146, 54, 9, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --rp-ok: #157a45; /* success */
+  --rp-amber: #93480c; /* warning */
+  --rp-red: #ba1e1e; /* error */
+  --rp-blue: #32619f; /* informational / links */
+  --rp-slate: #5a6673; /* neutral system tone */
+  --rp-iris: #ae480a; /* AI feature accent (brand family) */
+  --rp-well: #f5f3ed; /* inset surface */
+  --rp-well2: #edeae1; /* deepest inset surface */
   --rp-input-bg: #ffffff;
-  --rp-panel-shadow: 0 1px 2px rgba(34, 31, 24, 0.05);
-  --rp-panel-shadow-lg: 0 1px 2px rgba(34, 31, 24, 0.05),
-    0 18px 44px -28px rgba(34, 31, 24, 0.14);
+  --rp-panel-shadow: 0 1px 2px rgba(27, 24, 17, 0.05);
+  --rp-panel-shadow-lg: 0 1px 2px rgba(27, 24, 17, 0.04),
+    0 24px 48px -24px rgba(27, 24, 17, 0.16);
   color-scheme: light;
 }
 
 :root[data-theme="dark"] {
   /* ---------- dark theme (warm charcoal) ---------- */
-  --rp-ink: #151310;
-  --rp-abyss: #100f0c;
-  --rp-panel: #1c1a15;
-  --rp-panel2: #25221b;
-  --rp-hairline: #2e2b22;
-  --rp-hairline2: #3c382c;
-  --rp-fog: #8f8875;
-  --rp-mist: #c9c3b1;
-  --rp-paper: #f2eee4;
+  --rp-ink: #14120e;
+  --rp-abyss: #0f0e0b;
+  --rp-panel: #1b1913;
+  --rp-panel2: #24211a;
+  --rp-hairline: #2e2b21;
+  --rp-hairline2: #423d2f;
+  --rp-fog: #a39c88; /* muted text (readable at 10.5px) */
+  --rp-mist: #d9d3c1; /* body text */
+  --rp-paper: #f7f4eb; /* primary text / headings */
   --rp-acid: #f97316;
-  --rp-acid-dim: #ea580c;
+  --rp-acid-dim: #fb923c;
   --rp-btn-bg: #f97316;
-  --rp-btn-bg2: #fb8b3e;
+  --rp-btn-bg2: #fb923c;
   --rp-btn-fg: #1d1305;
-  --rp-btn-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --rp-ok: #4fb879;
-  --rp-amber: #e2a33d;
-  --rp-red: #ee6d5f;
-  --rp-blue: #85b0d8;
-  --rp-slate: #8b95a1;
-  --rp-iris: #f59e63;
-  --rp-well: #191712;
+  --rp-btn-shadow: 0 1px 2px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  --rp-ok: #55bf82;
+  --rp-amber: #e7ad52;
+  --rp-red: #f1776a;
+  --rp-blue: #92b6de;
+  --rp-slate: #959faa;
+  --rp-iris: #f7a76f;
+  --rp-well: #181611;
   --rp-well2: #12100c;
-  --rp-input-bg: #13110d;
+  --rp-input-bg: #14120e;
   --rp-panel-shadow: 0 0 0 rgba(0, 0, 0, 0);
-  --rp-panel-shadow-lg: 0 0 0 rgba(0, 0, 0, 0), 0 20px 44px -28px rgba(0, 0, 0, 0.5);
+  --rp-panel-shadow-lg: 0 0 0 rgba(0, 0, 0, 0),
+    0 24px 48px -24px rgba(0, 0, 0, 0.55);
   color-scheme: dark;
 }
 
@@ -102,28 +107,32 @@ body {
   background: var(--color-ink);
   color: var(--color-mist);
   font-family: var(--font-display);
+  font-size: 14px;
+  line-height: 1.55;
   min-height: 100vh;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--rp-acid) 24%, transparent);
+  background: color-mix(in srgb, var(--rp-acid) 26%, transparent);
   color: var(--rp-paper);
 }
 
 /* focus visibility (keyboard) */
 :focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--rp-acid) 75%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--rp-acid) 78%, transparent);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
-*::-webkit-scrollbar { width: 9px; height: 9px; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb {
   background: var(--rp-hairline2);
   border-radius: 8px;
-  border: 2px solid var(--rp-ink);
+  border: 3px solid var(--rp-ink);
 }
 *::-webkit-scrollbar-thumb:hover { background: var(--rp-fog); }
 
@@ -132,7 +141,7 @@ body {
 .panel {
   background: var(--color-panel);
   border: 1px solid var(--color-hairline);
-  border-radius: 14px;
+  border-radius: 16px;
   box-shadow: var(--rp-panel-shadow);
   position: relative;
 }
@@ -148,13 +157,13 @@ body {
   gap: 6px;
   font-family: var(--font-mono);
   font-size: 10.5px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   padding: 4px 10px;
   border-radius: 999px;
   border: 1px solid var(--color-hairline2);
-  color: var(--color-fog);
-  background: var(--color-panel2);
+  color: var(--color-mist);
+  background: var(--color-well);
 }
 
 .btn {
@@ -164,7 +173,8 @@ body {
   gap: 9px;
   font-weight: 600;
   font-size: 14px;
-  border-radius: 10px;
+  letter-spacing: -0.01em;
+  border-radius: 11px;
   padding: 11px 20px;
   transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease,
     box-shadow 0.16s ease, transform 0.12s ease;
@@ -189,6 +199,7 @@ body {
 }
 .btn-ghost:hover:not(:disabled) {
   background: var(--color-panel2);
+  border-color: color-mix(in srgb, var(--rp-paper) 30%, var(--color-hairline2));
   color: var(--color-paper);
 }
 
@@ -205,29 +216,107 @@ body {
   width: 100%;
   background: var(--rp-input-bg);
   border: 1px solid var(--color-hairline2);
-  border-radius: 10px;
-  padding: 12px 15px;
+  border-radius: 11px;
+  padding: 12px 16px;
   font-family: var(--font-mono);
-  font-size: 13.5px;
+  font-size: 13px;
   color: var(--color-paper);
   outline: none;
   transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 .input-dark::placeholder {
-  color: color-mix(in srgb, var(--rp-fog) 75%, transparent);
+  color: color-mix(in srgb, var(--rp-fog) 82%, transparent);
 }
 .input-dark:focus {
   border-color: color-mix(in srgb, var(--rp-acid) 65%, var(--color-hairline2));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rp-acid) 16%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rp-acid) 15%, transparent);
+}
+
+/* sans-serif input for human text (names, sentences) — mono is reserved
+   for queries, emails, numbers and logs */
+.input-sans {
+  width: 100%;
+  background: var(--rp-input-bg);
+  border: 1px solid var(--color-hairline2);
+  border-radius: 11px;
+  padding: 12px 16px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-paper);
+  outline: none;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+.input-sans::placeholder {
+  color: color-mix(in srgb, var(--rp-fog) 82%, transparent);
+  font-weight: 400;
+}
+.input-sans:focus {
+  border-color: color-mix(in srgb, var(--rp-acid) 65%, var(--color-hairline2));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rp-acid) 15%, transparent);
 }
 
 .label-mono {
   font-family: var(--font-mono);
   font-size: 10.5px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--color-fog);
 }
+
+/* ---------- crafted extras (v3) ---------- */
+
+/* display numerals / headlines: confident, tight, tabular */
+.display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+}
+
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* section heading inside a panel: 15px, semibold, no icon noise */
+.section-title {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--color-paper);
+}
+
+/* real helper text — replaces fake "// code comment" lines */
+.helper {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--rp-mist) 78%, var(--rp-fog));
+}
+
+/* soft data tables (history / per-role / versions) */
+.table-soft { width: 100%; text-align: left; border-collapse: collapse; }
+.table-soft thead th {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-fog);
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--color-hairline);
+  background: color-mix(in srgb, var(--rp-panel2) 55%, var(--rp-panel));
+  white-space: nowrap;
+}
+.table-soft tbody td {
+  padding: 13px 20px;
+  border-bottom: 1px solid color-mix(in srgb, var(--rp-hairline) 60%, transparent);
+  font-size: 13px;
+  color: var(--color-mist);
+  vertical-align: middle;
+}
+.table-soft tbody tr { transition: background 0.12s ease; }
+.table-soft tbody tr:hover {
+  background: color-mix(in srgb, var(--rp-panel2) 45%, transparent);
+}
+.table-soft tbody tr:last-child td { border-bottom: none; }
 
 /* ---------- motion (restrained) ---------- */
 
@@ -312,7 +401,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fade-up, .log-line, .pulse-dot, .caret, .scanline {
+  .fade-up, .log-line, .pulse-dot, .caret, .scanline, .marquee-track {
     animation: none !important;
   }
   * { transition-duration: 0.01ms !important; }

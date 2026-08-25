@@ -125,7 +125,7 @@ export default function RunConsolePage() {
           <Link href="/" className="mb-2 inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest text-fog transition-colors hover:text-acid">
             <ArrowLeft size={12} /> console
           </Link>
-          <h1 className="flex flex-wrap items-center gap-3 text-2xl font-bold tracking-tight text-paper sm:text-3xl">
+          <h1 className="display flex flex-wrap items-center gap-3 text-[26px] text-paper sm:text-[32px]">
             {run?.role ?? "…"}
             {run && (
               <span className={`chip border ${runStatusColor(run.status)}`}>
@@ -227,7 +227,7 @@ export default function RunConsolePage() {
           <div
             ref={termRef}
             onScroll={onTermScroll}
-            className="h-[460px] space-y-[7px] overflow-y-auto bg-well2 px-5 py-4 font-mono text-[12px] leading-relaxed"
+            className="h-[460px] space-y-[7px] overflow-y-auto bg-well2 px-5 py-4 font-mono text-[12.5px] leading-[1.65]"
           >
             {!data || data.logs.length === 0 ? (
               <p className="text-fog">$ awaiting engine output<span className="caret" /></p>
@@ -334,10 +334,10 @@ function Metric({
 }) {
   return (
     <div className="bg-well px-5 py-4">
-      <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-fog">
+      <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.14em] text-fog">
         <span className={highlight ? "text-acid" : "text-fog"}>{icon}</span> {label}
       </p>
-      <p className={`mt-1.5 text-xl font-bold tracking-tight ${highlight ? "text-acid" : "text-paper"}`}>{value}</p>
+      <p className={`display mt-1.5 text-[24px] leading-none ${highlight ? "text-acid" : "text-paper"}`}>{value}</p>
     </div>
   );
 }

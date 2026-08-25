@@ -151,7 +151,7 @@ export default function HistoryPage() {
       {/* table */}
       <div className="panel fade-up overflow-hidden" style={{ animationDelay: "120ms" }}>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-left">
+          <table className="table-soft w-full min-w-[860px] text-left">
             <thead>
               <tr className="border-b border-hairline bg-panel2 font-mono text-[10px] uppercase tracking-[0.16em] text-fog">
                 <th className="px-5 py-3.5 font-medium">recruiter email</th>
@@ -238,7 +238,7 @@ export default function HistoryPage() {
         </div>
       </div>
 
-      <p className="mt-3 font-mono text-[10.5px] uppercase tracking-widest text-fog">
+      <p className="helper mt-3 font-mono text-[10.5px] uppercase tracking-[0.14em]">
         {filtered.length} of {rows.length} records · duplicates blocked at the database level
       </p>
     </div>

@@ -36,10 +36,10 @@ export default function SettingsPage() {
         <p className="label-mono mb-2 flex items-center gap-2">
           <SettingsIcon size={12} className="text-acid" /> environment · from .env
         </p>
-        <h1 className="text-3xl font-bold tracking-tight text-paper sm:text-4xl">Settings</h1>
-        <p className="mt-2 max-w-xl text-[13.5px] leading-relaxed text-fog">
-          Everything comes from your <span className="font-mono text-mist">.env</span> file — edit values there and
-          restart the server. Secrets are masked here for safety.
+        <h1 className="display text-[30px] text-paper sm:text-[40px]">Settings</h1>
+        <p className="helper mt-2.5 max-w-xl text-[14px] leading-relaxed">
+          Everything comes from your <span className="font-mono font-semibold text-paper">.env</span> file — edit
+          values there and restart the server. Secrets are masked here for safety.
         </p>
       </div>
 
